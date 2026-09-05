@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "api-jdr-edit",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-01",
+  "vars": {
+    "REPO": "alemanym/api-jdr",
+    "BRANCH": "main",
+    "SHEETS_DIR": "characters",
+    "ALLOWED_ORIGIN": "*"
+  }
+  // Secrets (jamais ici, toujours via `npx wrangler secret put`) :
+  //   GITHUB_TOKEN  → token GitHub fine-grained, Contents: Read and write sur api-jdr
+  //   PLAYERS       → JSON { "mot-de-passe": "Nom du joueur", ... }
+}

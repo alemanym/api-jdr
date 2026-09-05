@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fiches — api-jdr</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<style>
+  :root {
+    --paper: #efe7d6;
+    --paper-deep: #e2d7c1;
+    --ink: #2b2620;
+    --ink-soft: #6b6156;
+    --rust: #9a4a2a;
+    --line: #c9bca4;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--paper); color: var(--ink); }
+  body {
+    margin: 0;
+    font-family: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+    font-size: 17px;
+    line-height: 1.55;
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    min-height: 100vh;
+  }
+  nav {
+    border-right: 1px solid var(--line);
+    padding: 28px 20px;
+    background: var(--paper-deep);
+  }
+  nav h1 {
+    font-size: 15px;
+    font-weight: normal;
+    font-style: italic;
+    color: var(--ink-soft);
+    margin: 0 0 18px;
+  }
+  nav ul { list-style: none; margin: 0; padding: 0; }
+  nav li { margin: 0 0 4px; }
+  nav button {
+    all: unset;
+    display: block;
+    width: 100%;
+    padding: 8px 10px;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+  }
+  nav button:hover, nav button:focus-visible { border-left-color: var(--line); }
+  nav button[aria-current="true"] { border-left-color: var(--rust); background: rgba(255,255,255,.35); }
+  nav button small { display: block; color: var(--ink-soft); font-size: 13px; }
+  main { padding: 36px 48px 80px; max-width: 900px; }
+  main > p.hint { color: var(--ink-soft); font-style: italic; }
+  header.sheet h2 { font-size: 40px; font-weight: normal; margin: 0; line-height: 1.1; }
+  header.sheet p { margin: 6px 0 0; color: var(--ink-soft); }
+  .special {
+    display: flex; gap: 10px; flex-wrap: wrap;
+    margin: 28px 0 8px;
+  }
+  .special div {
+    flex: 1 1 80px;
+    border: 1px solid var(--ink);
+    padding: 10px 0 6px;
+    text-align: center;
+  }
+  .special b { display: block; font-size: 32px; font-weight: normal; line-height: 1; }
+  .special span { font-size: 13px; color: var(--ink-soft); }
+  .state { margin: 20px 0 0; border-collapse: collapse; width: 100%; font-size: 15px; }
+  .state td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .state td:first-child { width: 150px; color: var(--ink-soft); white-space: nowrap; }
+  details { border-top: 1px solid var(--line); padding: 10px 0; }
+  details:last-of-type { border-bottom: 1px solid var(--line); }
+  summary { cursor: pointer; font-size: 20px; list-style: none; }
+  summary::before { content: "+"; display: inline-block; width: 22px; color: var(--rust); }
+  details[open] summary::before { content: "–"; }
+  .md { padding: 8px 0 8px 22px; font-size: 16px; }
+  .md table { border-collapse: collapse; margin: 10px 0; }
+  .md th, .md td { border: 1px solid var(--line); padding: 4px 10px; text-align: left; }
+  .md blockquote { border-left: 3px solid var(--line); margin: 10px 0; padding: 0 14px; color: var(--ink-soft); }
+  .md code { background: rgba(0,0,0,.06); padding: 1px 4px; }
+  .error { color: var(--rust); }
+  .toolbar { margin: 18px 0 0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .toolbar button, .toolbar input {
+    font: inherit; font-size: 15px; padding: 6px 14px;
+    border: 1px solid var(--ink); background: transparent; color: var(--ink); cursor: pointer;
+  }
+  .toolbar button.primary { background: var(--ink); color: var(--paper); }
+  .toolbar button:disabled { opacity: .5; cursor: default; }
+  .toolbar .status { color: var(--ink-soft); font-style: italic; }
+  textarea.editor {
+    width: 100%; min-height: 70vh; margin-top: 16px; padding: 14px;
+    font: 14px/1.5 ui-monospace, Menlo, Consolas, monospace;
+    border: 1px solid var(--line); background: #fff; color: var(--ink); resize: vertical;
+  }
+  @media (max-width: 720px) {
+    body { grid-template-columns: 1fr; }
+    nav { border-right: 0; border-bottom: 1px solid var(--line); }
+    main { padding: 24px 20px 60px; }
+  }
+</style>
+</head>
+<body>
+<nav>
+  <h1>Personnages</h1>
+  <ul id="liste"><li>Chargement…</li></ul>
+</nav>
+<main id="fiche">
+  <p class="hint">Choisissez un personnage.</p>
+</main>
+
+<script>
+const API = "https://alemanym.github.io/api-jdr/api";
+// URL du Worker Cloudflare (affichée par `npx wrangler deploy`). Laissez vide pour désactiver l'édition.
+const WORKER = "https://api-jdr-edit.alemanym.workers.dev";
+let playerKey = "";   // mot de passe du joueur, gardé en mémoire le temps de la page
+const $ = (sel) => document.querySelector(sel);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+// 1. Liste des personnages
+async function chargerListe() {
+  try {
+    const persos = await fetch(`${API}/characters.json`).then(r => r.json());
+    $("#liste").innerHTML = persos.map(p => `
+      <li><button data-id="${esc(p.id)}">
+        ${esc(p.name)}
+        <small>${esc(p.player ?? "—")}${p.level != null ? ` · niv. ${esc(p.level)}` : ""}</small>
+      </button></li>`).join("");
+    $("#liste").addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-id]");
+      if (btn) afficherFiche(btn.dataset.id);
+    });
+    const premier = new URLSearchParams(location.search).get("id") ?? persos[0]?.id;
+    if (premier) afficherFiche(premier);
+  } catch (err) {
+    $("#liste").innerHTML = `<li class="error">Impossible de charger la liste (${esc(err.message)}).</li>`;
+  }
+}
+
+// 2. Une fiche complète
+async function afficherFiche(id) {
+  document.querySelectorAll("#liste button").forEach(b => b.setAttribute("aria-current", b.dataset.id === id));
+  history.replaceState(null, "", `?id=${encodeURIComponent(id)}`);
+  $("#fiche").innerHTML = `<p class="hint">Chargement de ${esc(id)}…</p>`;
+
+  let pj;
+  try {
+    pj = await fetch(`${API}/characters/${encodeURIComponent(id)}.json`).then(r => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    });
+  } catch (err) {
+    $("#fiche").innerHTML = `<p class="error">Fiche introuvable (${esc(err.message)}).</p>`;
+    return;
+  }
+
+  // Attributs : premier tableau à 2 colonnes d'une section dont le titre contient "special"
+  const secSpecial = Object.values(pj.sections).find(s => /special/i.test(s.title));
+  const attrs = secSpecial?.tables?.find(t => t.map)?.map ?? {};
+
+  // État courant : n'importe quelle section dont le titre commence par "État" / "Etat"
+  const secEtat = Object.values(pj.sections).find(s => /^[ée]tat/i.test(s.title));
+  const etat = secEtat?.tables?.find(t => t.map)?.map ?? {};
+
+  const sousTitre = [
+    pj.player && `Joueur : ${pj.player}`,
+    pj.level != null && `Niveau ${pj.level}`,
+    pj.meta?.origine,
+    pj.campaigns?.length && `Campagne : ${pj.campaigns.join(", ")}`,
+  ].filter(Boolean).map(esc).join(" — ");
+
+  $("#fiche").innerHTML = `
+    <header class="sheet">
+      <h2>${esc(pj.title ?? pj.name)}</h2>
+      <p>${sousTitre}</p>
+      ${WORKER ? `<div class="toolbar"><button id="btn-edit">Modifier la fiche</button></div>` : ""}
+    </header>
+
+    ${Object.keys(attrs).length ? `
+    <div class="special">
+      ${Object.entries(attrs).map(([k, v]) => `<div><b>${esc(v)}</b><span>${esc(k)}</span></div>`).join("")}
+    </div>` : ""}
+
+    ${Object.keys(etat).length ? `
+    <table class="state">
+      ${Object.entries(etat).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")}
+    </table>` : ""}
+
+    <div style="margin-top:32px">
+      ${Object.values(pj.sections)
+        .filter(s => s.level >= 2)
+        .map(s => `
+          <details>
+            <summary>${esc(s.title)}</summary>
+            <div class="md">${marked.parse(s.raw || "")}</div>
+          </details>`).join("")}
+    </div>`;
+}
+
+// 3. Édition : charge le Markdown brut depuis le Worker, l'enregistre par commit GitHub
+async function editerFiche(id) {
+  const main = $("#fiche");
+  main.innerHTML = `<p class="hint">Chargement du Markdown de ${esc(id)}…</p>`;
+  let sheet;
+  try {
+    sheet = await appelWorker(`/sheet/${encodeURIComponent(id)}`);
+  } catch (err) {
+    main.innerHTML = `<p class="error">${esc(err.message)}</p>
+      <div class="toolbar"><button id="btn-back">Retour</button></div>`;
+    $("#btn-back").onclick = () => afficherFiche(id);
+    return;
+  }
+
+  main.innerHTML = `
+    <header class="sheet"><h2>Modifier ${esc(id)}</h2>
+      <p>Frontmatter YAML en haut, Markdown en dessous. Le JSON sera régénéré une minute après l'enregistrement.</p>
+    </header>
+    <div class="toolbar">
+      <input id="pwd" type="password" placeholder="Mot de passe joueur" value="${esc(playerKey)}" autocomplete="current-password">
+      <input id="msg" type="text" placeholder="Résumé de la modification (facultatif)" style="flex:1;min-width:200px">
+      <button id="btn-save" class="primary">Enregistrer</button>
+      <button id="btn-cancel">Annuler</button>
+      <span class="status" id="status"></span>
+    </div>
+    <textarea class="editor" id="editor" spellcheck="false"></textarea>`;
+  $("#editor").value = sheet.content;
+  $("#btn-cancel").onclick = () => afficherFiche(id);
+
+  $("#btn-save").onclick = async () => {
+    playerKey = $("#pwd").value.trim();
+    if (!playerKey) { $("#status").textContent = "Indiquez votre mot de passe joueur."; return; }
+    $("#btn-save").disabled = true;
+    $("#status").textContent = "Enregistrement…";
+    try {
+      const res = await appelWorker(`/sheet/${encodeURIComponent(id)}`, {
+        method: "PUT",
+        body: JSON.stringify({ content: $("#editor").value, sha: sheet.sha, message: $("#msg").value }),
+      });
+      sheet.sha = res.sha;
+      $("#status").textContent = `Enregistré par ${res.player}. La fiche publique sera à jour dans environ une minute.`;
+    } catch (err) {
+      $("#status").textContent = err.message;
+    } finally {
+      $("#btn-save").disabled = false;
+    }
+  };
+}
+
+async function appelWorker(path, init = {}) {
+  const r = await fetch(WORKER + path, {
+    ...init,
+    headers: { "Content-Type": "application/json", "X-Player-Key": playerKey, ...(init.headers ?? {}) },
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error ?? `Erreur ${r.status}`);
+  return data;
+}
+
+document.addEventListener("click", (e) => {
+  if (e.target.id === "btn-edit") editerFiche(new URLSearchParams(location.search).get("id"));
+});
+
+chargerListe();
+</script>
+</body>
+</html>
