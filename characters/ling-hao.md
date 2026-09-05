@@ -149,7 +149,7 @@ canon_refs:
 
 | Stat | Valeur |
 |---|---|
-| PV | **8 / 10** *(récupération complète durant inter-quête)* |
+| PV | **1 / 10** *(récupération complète durant inter-quête)* |
 | AP joueur | 0 |
 | Encombrement | — / 115 kg |
 | Statut | Opérationnel (a frôlé l'extinction passagère en S1 — placé à l'ombre par Diego, dévitalisation amorcée, rétabli avant arrêt complet) |
@@ -195,7 +195,7 @@ canon_refs:
 - **Composant peu fréquent × 1** *(2e consommé pour auto-réparation post-combat Roues S1 2281-05-14)*
 - 1 Fusion core
 - Gourde (1 dose eau purifiée) ; ~~2 rations sèches~~ *(transférées à Diego S1 2281-05-14)*
-- Capsules : **170** *(140 + 33 part équitable bénéfice Troc critique Pearl S1 2281-05-14)*
+- Capsules : **160** *(140 + 33 part équitable bénéfice Troc critique Pearl S1 2281-05-14)*
 - **2 grenades à fragmentation** *(loot Hatch S1, part Líng-Hào — CD 6 explosives portée M zone d'impact)*
 - **Plastron lourd de pillard** *(loot Hatch — RD 2 bal/énerg buste+bras, valeur marchande ~100 caps)*
 - ~~2 brassards lourds de pillard~~ *(loot Hatch — ÉQUIPÉS, cf. §Équipement porté)*
