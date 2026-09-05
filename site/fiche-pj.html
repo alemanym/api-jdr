@@ -72,7 +72,13 @@
   .sync-pill .arrow { color: var(--hint); font-size: 10px; }
   .sync-panel { display: none; margin-bottom: 8px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 4px; background: rgba(0,0,0,.8); backdrop-filter: blur(4px); }
   .sync.open .sync-panel { display: block; }
-  .sync-panel .st { color: var(--muted); margin-bottom: 10px; line-height: 1.5; }
+  .sync-panel .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .sync-panel .st { color: var(--muted); line-height: 1.5; }
+  .sync-panel .icon { all: unset; cursor: pointer; display: inline-flex; padding: 4px; border: 1px solid var(--line); border-radius: 4px; color: var(--accent); line-height: 0; }
+  .sync-panel .icon:hover, .sync-panel .icon:focus-visible { border-color: var(--accent); background: var(--accent-soft); }
+  .sync-panel .icon.spin svg { animation: syncspin .8s linear infinite; }
+  @keyframes syncspin { to { transform: rotate(360deg); } }
+  .sync-panel .row:empty, .sync-panel .row.none { display: none; }
   .sync-panel .st b { color: var(--accent); }
   .sync-panel .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
   .sync-panel .row[hidden], .sync-panel .msg[hidden] { display: none; }
@@ -310,11 +316,12 @@
 
   <div class="sync" id="sync-bar" hidden data-state="synced">
     <div class="sync-panel">
-      <div class="st" id="sync-status"></div>
-      <div class="row">
+      <div class="head"><div class="st" id="sync-status"></div><button id="btn-sync-check" class="icon" title="Vérifier si le repo a changé" aria-label="Synchroniser">
+        <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
+      </button></div>
+      <div class="row" id="sync-actions">
         <button id="btn-sync-push" class="primary" hidden>Publier…</button>
         <button id="btn-sync-discard" hidden class="tiny" title="Abandonner les modifications non publiées">Annuler</button>
-        <button id="btn-sync-check" class="tiny" title="Vérifier si le repo a changé">Synchro.</button>
       </div>
       <div class="msg" id="sync-msg" hidden></div>
     </div>
@@ -1762,6 +1769,7 @@
     const now = Date.now();
     if (now < S.repo.pausedUntil) { if (!silent) syncMsg('Quota GitHub épuisé — nouvelle tentative possible à ' + new Date(S.repo.pausedUntil).toLocaleTimeString('fr-FR')); return; }
     if (!force && now - S.repo.checkedAt < CHECK_MIN_INTERVAL) return;
+    $('#btn-sync-check').classList.add('spin');
     checking = (async () => {
       try {
         const etag = S.repo.remoteEtag || S.repo.etag;
@@ -1775,7 +1783,7 @@
       } catch (e) {
         if (e.retryAfter) { S.repo.pausedUntil = Date.now() + e.retryAfter * 1000; syncMsg(e.message + ' (vérifications automatiques suspendues)'); }
         else syncMsg('Vérification impossible : ' + e.message);
-      } finally { checking = null; }
+      } finally { checking = null; $('#btn-sync-check').classList.remove('spin'); }
     })();
     return checking;
   }
@@ -1820,6 +1828,7 @@
     S.repo.lastState = state;
     $('#btn-sync-push').hidden = !n;
     $('#btn-sync-discard').hidden = !n;
+    $('#sync-actions').classList.toggle('none', !n);
   }
   function setSyncOpen(open) { const el = $('#sync-bar'); el.classList.toggle('open', open); $('#sync-pill').setAttribute('aria-expanded', String(open)); }
   $('#sync-pill').addEventListener('click', () => setSyncOpen(!$('#sync-bar').classList.contains('open')));
