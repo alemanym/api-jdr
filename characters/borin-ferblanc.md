@@ -6,8 +6,8 @@ campaign: marches-du-nord
 class: Guerrier
 level: 3
 hp:
-  current: 34
-  max: 34
+  current: 40
+  max: 45
 stats:
   for: 16
   dex: 10
