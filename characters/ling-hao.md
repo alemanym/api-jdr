@@ -149,7 +149,7 @@ canon_refs:
 
 | Stat | Valeur |
 |---|---|
-| PV | **1 / 10** *(récupération complète durant inter-quête)* |
+| PV | **10 / 10** *(récupération complète durant inter-quête)* |
 | AP joueur | 0 |
 | Encombrement | — / 115 kg |
 | Statut | Opérationnel (a frôlé l'extinction passagère en S1 — placé à l'ombre par Diego, dévitalisation amorcée, rétabli avant arrêt complet) |
