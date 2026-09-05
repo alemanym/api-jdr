@@ -1,0 +1,12 @@
+{
+  "name": "api-jdr",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-api.js"
+  },
+  "dependencies": {
+    "gray-matter": "^4.0.3"
+  }
+}
