@@ -1,0 +1,1944 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="green">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fiche de personnage — Fallout 2d20</title>
+<style>
+  /* ---------- Thème Pip-Boy (vert) ---------- */
+  :root, html[data-theme="green"] {
+    --bg: #070a06; --bg-glow: #0d160b; --panel: #0c120a; --panel-2: #101a0d; --line: #1f3a1a;
+    --accent: #3dff6a; --accent-dim: #1f9a3f; --accent-soft: rgba(61,255,106,.12); --accent-rgb: 61,255,106;
+    --hi: #ffb000; --hi-dim: #8a5e00; --hi-soft: rgba(255,176,0,.1);
+    --red: #ff4d4d; --text: #bfffcf; --muted: #6fbf85; --hint: #4d8a5f; --fail: #7a8a7a;
+    --edit-bg: rgba(61,255,106,.08);
+  }
+  /* ---------- Thème New Vegas (ambre) ---------- */
+  html[data-theme="amber"] {
+    --bg: #0a0704; --bg-glow: #1a1006; --panel: #120c06; --panel-2: #1b1208; --line: #3d2a12;
+    --accent: #ffb642; --accent-dim: #a86f1a; --accent-soft: rgba(255,182,66,.12); --accent-rgb: 255,182,66;
+    --hi: #7fe7ff; --hi-dim: #2a6f80; --hi-soft: rgba(127,231,255,.1);
+    --red: #ff5a4d; --text: #ffe2b3; --muted: #c9964f; --hint: #8a6534; --fail: #8a7f6f;
+    --edit-bg: rgba(255,182,66,.08);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: radial-gradient(ellipse at center, var(--bg-glow) 0%, var(--bg) 70%);
+    color: var(--text);
+    font-family: "Share Tech Mono", "Consolas", "Lucida Console", "Courier New", monospace;
+    font-size: 13px; line-height: 1.4; min-height: 100vh;
+    text-shadow: 0 0 2px rgba(var(--accent-rgb), .35);
+    transition: background .3s, color .3s;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 999;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0px, rgba(0,0,0,.18) 1px, transparent 2px, transparent 4px);
+    mix-blend-mode: multiply;
+  }
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 18px 18px 60px; }
+
+  /* ---------- barre d'outils ---------- */
+  header {
+    border: 2px solid var(--accent-dim); border-radius: 6px; padding: 12px 18px; margin-bottom: 18px;
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    box-shadow: 0 0 18px var(--accent-soft), inset 0 0 40px rgba(0,0,0,.5);
+    display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    position: sticky; top: 8px; z-index: 50;
+  }
+  header h1 { margin: 0; font-size: 18px; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); }
+  header h1 small { display: block; font-size: 10px; letter-spacing: 2px; color: var(--muted); margin-top: 3px; text-transform: none; }
+  .head-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .theme-toggle { display: flex; border: 1px solid var(--accent-dim); border-radius: 3px; overflow: hidden; }
+  .theme-toggle button { border: 0; border-radius: 0; padding: 5px 12px; font-size: 11px; }
+  .theme-toggle button.active { background: var(--accent); color: var(--bg); text-shadow: none; font-weight: bold; }
+  .file-status { font-size: 11px; color: var(--muted); letter-spacing: 1px; max-width: 420px; }
+  .file-status b { color: var(--hi); }
+  .file-status .dirty { color: var(--red); }
+  /* ---- synchronisation repo : pastille bas-droite, dépliable ---- */
+  .sync { position: fixed; right: 18px; bottom: 18px; z-index: 40; font-size: 12px; letter-spacing: .5px; max-width: min(420px, calc(100vw - 36px)); }
+  .sync-pill { display: flex; align-items: center; gap: 8px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 999px; background: rgba(0,0,0,.7); backdrop-filter: blur(4px); cursor: pointer; color: var(--text); user-select: none; }
+  .sync-pill:hover { border-color: var(--accent-dim); }
+  .sync-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px var(--accent); flex: none; }
+  .sync[data-state="edits"] .dot { background: var(--red); box-shadow: 0 0 6px var(--red); }
+  .m-save-conflict { display: grid; grid-template-columns: 1fr auto auto; gap: 6px 14px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .m-save-conflict label { cursor: pointer; white-space: nowrap; }
+  .m-save-conflict .old { text-decoration: none; }
+  .modal-body input { font: inherit; padding: 4px 8px; background: rgba(0,0,0,.35); border: 1px solid var(--line); color: var(--text); color-scheme: dark; }
+  .sync[data-state="behind"] .dot { background: var(--hi); box-shadow: 0 0 6px var(--hi); }
+  .sync[data-state="conflict"] .dot { background: var(--red); box-shadow: 0 0 6px var(--red); animation: syncblink 1s steps(2) infinite; }
+  @keyframes syncblink { to { opacity: .3; } }
+  .sync-pill .arrow { color: var(--hint); font-size: 10px; }
+  .sync-panel { display: none; margin-bottom: 8px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 4px; background: rgba(0,0,0,.8); backdrop-filter: blur(4px); }
+  .sync.open .sync-panel { display: block; }
+  .sync-panel .st { color: var(--muted); margin-bottom: 10px; line-height: 1.5; }
+  .sync-panel .st b { color: var(--accent); }
+  .sync-panel .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+  .sync-panel .row[hidden], .sync-panel .msg[hidden] { display: none; }
+  .sync-pill .when { color: var(--hint); }
+  .sync-panel input { font: inherit; padding: 4px 8px; background: rgba(0,0,0,.35); border: 1px solid var(--line); color: var(--text); width: 120px; color-scheme: dark; }
+  .sync-panel .msg { color: var(--hint); margin-top: 8px; line-height: 1.4; }
+  .repo-box { border: 1px solid var(--accent); border-radius: 4px; padding: 10px; margin-bottom: 14px; }
+  .repo-box select { font: inherit; padding: 6px 8px; background: rgba(0,0,0,.35); border: 1px solid var(--line); color: var(--accent); color-scheme: dark; }
+  .repo-box select option { background: var(--bg, #050805); color: var(--text); }
+  .repo-box .t { color: var(--accent); font-size: 12px; letter-spacing: 1px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+
+  button {
+    font-family: inherit; font-size: 12px; letter-spacing: 1px; text-transform: uppercase;
+    background: transparent; color: var(--accent); border: 1px solid var(--accent-dim);
+    border-radius: 3px; padding: 6px 12px; cursor: pointer; transition: all .12s;
+  }
+  button:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); box-shadow: 0 0 8px var(--accent-soft); }
+  button:disabled { opacity: .4; cursor: default; }
+  button.primary { background: var(--accent); color: var(--bg); text-shadow: none; font-weight: bold; }
+  button.primary:hover:not(:disabled) { background: var(--accent); box-shadow: 0 0 12px var(--accent-soft); }
+  button.danger { color: var(--red); border-color: #6b2020; }
+  button.danger:hover:not(:disabled) { background: rgba(255,77,77,.12); border-color: var(--red); }
+  button.tiny { padding: 1px 6px; font-size: 10px; letter-spacing: 0; }
+
+  /* ---------- feuille ---------- */
+  .sheet { display: grid; gap: 14px; }
+  .panel {
+    border: 1px solid var(--line); border-radius: 6px; background: var(--panel);
+    box-shadow: 0 0 12px rgba(0,0,0,.6); overflow: hidden;
+  }
+  .panel-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 6px 12px; background: linear-gradient(90deg, var(--accent-soft), transparent); border-bottom: 1px solid var(--line);
+  }
+  .panel-head h2 { margin: 0; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); }
+  .panel-head .sub { font-size: 10px; color: var(--hint); letter-spacing: 1px; }
+  .panel-body { padding: 10px 12px; }
+  .ribbon { /* bandeau incliné façon fiche officielle */
+    display: inline-block; padding: 3px 18px 3px 10px; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--bg);
+    background: var(--accent); clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%); text-shadow: none; font-weight: bold;
+  }
+
+  /* en-tête de fiche */
+  .id-row { display: grid; grid-template-columns: 1.4fr 1fr auto; gap: 14px; align-items: stretch; }
+  .id-name { padding: 10px 14px; }
+  .id-name .lbl { font-size: 10px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; }
+  .id-name .val { font-size: 26px; color: var(--accent); letter-spacing: 2px; text-shadow: 0 0 8px var(--accent-soft); margin-top: 2px; }
+  .id-name .meta { font-size: 11px; color: var(--hint); margin-top: 6px; }
+  .id-name .meta b { color: var(--muted); font-weight: normal; }
+  .id-fields { display: grid; grid-template-rows: repeat(3, 1fr); }
+  .id-fields > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 12px; border-bottom: 1px solid var(--line); }
+  .id-fields > div:last-child { border-bottom: 0; }
+  .id-fields .lbl { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+  .id-fields .val { font-size: 16px; color: var(--accent); }
+  .id-level { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 14px; min-width: 130px; }
+  .id-level .lbl { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+
+  /* S.P.E.C.I.A.L. */
+  .special-row { display: grid; grid-template-columns: repeat(7, 1fr) 1.1fr; gap: 10px; align-items: end; }
+  .attr { text-align: center; }
+  .attr .ribbon { width: 100%; text-align: left; clip-path: polygon(0 0, 100% 0, 100% 100%, 8px 100%); padding-left: 12px; }
+  .attr .gear { margin: 6px auto 0; }
+  .gear { position: relative; width: 84px; height: 84px; display: grid; place-items: center; }
+  .gear.big { width: 100px; height: 100px; }
+  .gear.small { width: 66px; height: 66px; }
+  .gear svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .gear svg path { fill: var(--panel-2); stroke: var(--accent-dim); stroke-width: 1.5; }
+  .gear .gv { position: relative; font-size: 28px; color: var(--accent); text-shadow: 0 0 8px var(--accent-soft); line-height: 1; }
+  .gear.big .gv { font-size: 34px; }
+  .gear.small .gv { font-size: 22px; }
+  .gear .gv small { display: block; font-size: 10px; color: var(--muted); letter-spacing: 1px; margin-top: 2px; }
+  .luck-box { text-align: center; }
+  .luck-box .pair { font-size: 24px; color: var(--accent); }
+  .luck-box .pair .sep { color: var(--hint); margin: 0 4px; }
+  .luck-box .pair .max { color: var(--muted); font-size: 18px; }
+
+  /* colonnes principales */
+  .cols { display: grid; grid-template-columns: 1fr 1.25fr; gap: 14px; }
+  .cols2 { display: grid; grid-template-columns: 1.35fr 1fr; gap: 14px; }
+  @media (max-width: 980px) { .cols, .cols2, .id-row, .special-row { grid-template-columns: 1fr; } .special-row { grid-template-columns: repeat(4, 1fr); } }
+
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border-bottom: 1px solid var(--line); padding: 4px 8px; text-align: left; vertical-align: middle; }
+  th { background: var(--panel-2); color: var(--accent); text-transform: uppercase; letter-spacing: 1px; font-size: 10px; font-weight: normal; border-bottom: 2px solid var(--accent-dim); }
+  td.c, th.c { text-align: center; }
+  td.num { text-align: center; min-width: 44px; }
+  td.att { color: var(--hint); font-size: 11px; }
+  tr.struck td { color: var(--fail); text-decoration: line-through; text-shadow: none; }
+  tr.struck td .ed { color: var(--fail); }
+  tr.hdr td { color: var(--muted); font-style: italic; border-bottom: 1px dashed var(--line); padding-top: 8px; }
+  .table-scroll { overflow-x: auto; }
+  .tag { display: inline-block; width: 14px; height: 14px; border: 1px solid var(--accent-dim); border-radius: 2px; text-align: center; line-height: 12px; font-size: 11px; color: var(--hi); cursor: pointer; }
+  .tag.on { background: var(--hi-soft); border-color: var(--hi); text-shadow: 0 0 6px var(--hi); }
+
+  /* combat */
+  .combat-top { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px; }
+  .stat { border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; background: rgba(0,0,0,.25); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .stat .lbl { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+  .stat .val { font-size: 18px; color: var(--accent); }
+  .stat .val.sm { font-size: 13px; }
+  .health { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .hp-box { border: 1px solid var(--accent-dim); border-radius: 4px; padding: 8px 10px; background: rgba(0,0,0,.3); box-shadow: inset 0 0 20px rgba(0,0,0,.4); }
+  .hp-box .lbl { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+  .hp-box .big { font-size: 30px; color: var(--accent); line-height: 1.1; }
+  .hp-box .big .max { font-size: 16px; color: var(--muted); }
+  .hp-box.warn .big { color: var(--hi); }
+  .hp-box.crit .big { color: var(--red); text-shadow: 0 0 8px rgba(255,77,77,.5); }
+  .hp-bar { height: 8px; background: rgba(0,0,0,.5); border: 1px solid var(--line); border-radius: 3px; margin-top: 6px; overflow: hidden; }
+  .hp-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent-dim), var(--accent)); transition: width .2s; }
+  .hp-box.warn .hp-bar i { background: linear-gradient(90deg, var(--hi-dim), var(--hi)); }
+  .hp-box.crit .hp-bar i { background: var(--red); }
+  .hp-box .row { display: flex; justify-content: space-between; gap: 6px; font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  /* localisations (silhouette) */
+  .body { display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-areas: "larm head rarm" "larm torso rarm" "lleg torso rleg"; gap: 8px; margin-top: 10px; }
+  .loc { border: 1px solid var(--line); border-radius: 4px; background: rgba(0,0,0,.25); padding: 5px 7px; }
+  .loc .lbl { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--accent); display: flex; justify-content: space-between; }
+  .loc .lbl small { color: var(--hint); letter-spacing: 0; }
+  .loc .rd { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 4px; font-size: 11px; }
+  .loc .rd div { text-align: center; border: 1px dashed var(--line); border-radius: 3px; padding: 2px; }
+  .loc .rd b { display: block; font-size: 9px; color: var(--hint); font-weight: normal; letter-spacing: 1px; }
+  .loc .rd span { color: var(--text); font-size: 13px; }
+  .loc.head { grid-area: head; } .loc.torso { grid-area: torso; } .loc.larm { grid-area: larm; } .loc.rarm { grid-area: rarm; } .loc.lleg { grid-area: lleg; } .loc.rleg { grid-area: rleg; }
+
+  /* état courant */
+  .etat-grid { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 12px; }
+  .etat-grid .k { color: var(--muted); text-transform: uppercase; letter-spacing: 1px; font-size: 10px; padding-top: 3px; white-space: nowrap; }
+  .etat-grid .v { color: var(--text); }
+
+  /* page 2 */
+  .caps-row { display: flex; align-items: center; gap: 16px; }
+  .caps-row .gear { flex: none; }
+  .weight-foot { display: grid; grid-template-columns: 1fr 1fr; border-top: 2px solid var(--accent-dim); }
+  .weight-foot > div { padding: 6px 8px; display: flex; justify-content: space-between; gap: 8px; }
+  .weight-foot .lbl { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+  .weight-foot .val { color: var(--accent); font-size: 15px; }
+  .weight-foot .val.over { color: var(--red); }
+  .perk-effect { color: var(--muted); font-size: 11.5px; }
+  .kind { display: inline-block; font-size: 9px; letter-spacing: 1px; text-transform: uppercase; border: 1px solid var(--line); border-radius: 2px; padding: 0 4px; color: var(--hint); margin-right: 4px; }
+
+  /* champs éditables */
+  .ed { display: inline-block; min-width: 1.2em; padding: 0 3px; border-radius: 2px; border-bottom: 1px dotted transparent; cursor: text; transition: background .12s; }
+  .ed[data-mode="simple"] { border-bottom-color: var(--accent-dim); }
+  .ed[data-mode="simple"]:hover { background: var(--edit-bg); }
+  .ed[data-mode="protected"] { cursor: default; border-bottom-color: var(--line); }
+  .ed[data-mode="protected"]:hover { background: var(--hi-soft); border-bottom-color: var(--hi-dim); }
+  .ed.changed { color: var(--hi); text-shadow: 0 0 6px var(--hi-soft); border-bottom: 1px solid var(--hi); }
+  .ed.block { display: block; white-space: pre-wrap; }
+  .ed-input {
+    font-family: inherit; font-size: inherit; color: var(--hi); background: rgba(0,0,0,.5); border: 1px solid var(--hi);
+    border-radius: 2px; padding: 0 3px; outline: none; min-width: 3em; box-shadow: 0 0 8px var(--hi-soft); text-shadow: none;
+  }
+  .ed-input.wide { width: 100%; }
+  textarea.ed-input { width: 100%; min-height: 3.2em; resize: vertical; }
+  .empty { color: var(--fail); }
+  .hint { font-size: 10px; color: var(--hint); }
+  .ro { color: var(--hint); font-size: 10px; letter-spacing: 1px; }
+
+  /* accueil vide */
+  .welcome { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .welcome .logo { font-size: 46px; color: var(--accent); letter-spacing: 6px; text-shadow: 0 0 14px var(--accent-soft); }
+  .welcome p { max-width: 600px; margin: 14px auto; line-height: 1.6; }
+  .blink { animation: blink 1.2s steps(2, start) infinite; }
+  @keyframes blink { to { visibility: hidden; } }
+
+  /* modales */
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.72); display: none; align-items: center; justify-content: center; z-index: 500; padding: 20px; }
+  .modal-bg.open { display: flex; }
+  .modal {
+    width: min(720px, 100%); max-height: 90vh; overflow: auto; border: 2px solid var(--accent-dim); border-radius: 6px;
+    background: linear-gradient(180deg, var(--panel-2), var(--panel)); box-shadow: 0 0 30px var(--accent-soft), inset 0 0 60px rgba(0,0,0,.5);
+  }
+  .modal-head { padding: 10px 16px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
+  .modal-head h3 { margin: 0; font-size: 14px; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); }
+  .modal-body { padding: 14px 16px; }
+  .modal-foot { padding: 10px 16px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+  .path-box { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 4px; padding: 6px 10px; background: rgba(0,0,0,.35); margin-bottom: 10px; flex-wrap: wrap; }
+  .path-box .p { flex: 1; color: var(--accent); font-size: 12px; word-break: break-all; }
+  .path-box .p small { color: var(--hint); display: block; font-size: 10px; }
+  .file-list { border: 1px solid var(--line); border-radius: 4px; max-height: 320px; overflow: auto; background: rgba(0,0,0,.25); }
+  .file-list div { padding: 6px 10px; border-bottom: 1px solid var(--line); cursor: pointer; display: flex; justify-content: space-between; gap: 10px; }
+  .file-list div:hover { background: var(--accent-soft); }
+  .file-list div.sel { background: var(--accent-soft); color: var(--accent); }
+  .file-list div small { color: var(--hint); }
+  .file-list .none { color: var(--fail); cursor: default; }
+  .changes { border: 1px solid var(--line); border-radius: 4px; background: rgba(0,0,0,.3); max-height: 300px; overflow: auto; }
+  .changes div { padding: 4px 10px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 12px; }
+  .changes div .lbl { color: var(--muted); }
+  .changes div .old { color: var(--fail); text-decoration: line-through; }
+  .changes div .new { color: var(--hi); }
+  .confirm-line { font-size: 15px; margin: 8px 0 14px; }
+  .confirm-line .old { color: var(--fail); text-decoration: line-through; }
+  .confirm-line .new { color: var(--hi); text-shadow: 0 0 6px var(--hi-soft); }
+  .warn { color: var(--hi); font-size: 12px; border: 1px dashed var(--hi-dim); border-radius: 4px; padding: 6px 10px; margin: 8px 0; }
+  .err { color: var(--red); font-size: 12px; border: 1px dashed var(--red); border-radius: 4px; padding: 6px 10px; margin: 8px 0; }
+  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--panel-2); border: 1px solid var(--accent); color: var(--accent); padding: 8px 16px; border-radius: 4px; z-index: 600; box-shadow: 0 0 14px var(--accent-soft); font-size: 12px; letter-spacing: 1px; display: none; }
+  .toast.show { display: block; }
+  footer { font-size: 11px; color: var(--hint); margin-top: 14px; line-height: 1.6; }
+  details summary { cursor: pointer; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; font-size: 11px; }
+  details { border: 1px dashed var(--line); padding: 8px 12px; border-radius: 4px; }
+  details ul { margin: 6px 0 0; padding-left: 18px; }
+  details b { color: var(--muted); }
+  @media print { header, .modal-bg, .toast, footer, body::before { display: none !important; } body { background: #fff; color: #000; text-shadow: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Fiche de personnage
+        <small>Fallout — le jeu de rôle officiel · terminal RobCo · fiche humanoïde (agencement Modiphius 2021)</small>
+      </h1>
+    </div>
+    <div class="head-right">
+      <div class="file-status" id="file-status">Aucune fiche chargée</div>
+      <button id="btn-load">Charger…</button>
+      <button id="btn-reload" disabled title="Relire le fichier depuis le disque (abandonne les modifications non sauvegardées)">Recharger</button>
+      <button id="btn-save" class="primary" disabled>Sauvegarder</button>
+      <div class="theme-toggle" role="group" aria-label="Thème">
+        <button type="button" data-theme-btn="green" title="Pip-Boy 3000 — Capital Wasteland">Pip-Boy vert</button>
+        <button type="button" data-theme-btn="amber" title="Pip-Boy 3000 — Mojave (New Vegas)">Mojave ambre</button>
+      </div>
+    </div>
+  </header>
+
+  <div id="welcome" class="welcome">
+    <div class="logo">ROBCO INDUSTRIES</div>
+    <div>UNIFIED OPERATING SYSTEM — COPYRIGHT 2075-2077 ROBCO INDUSTRIES</div>
+    <p>Aucune fiche de personnage en mémoire. Chargez un fichier <code>.md</code> de PJ (format du projet Fallout_JDR) pour afficher la fiche.</p>
+    <p><button id="btn-load-2" class="primary">Charger une fiche…</button></p>
+    <div class="hint">&gt; <span class="blink">_</span></div>
+  </div>
+
+  <div id="sheet" class="sheet" hidden></div>
+
+  <div class="sync" id="sync-bar" hidden data-state="synced">
+    <div class="sync-panel">
+      <div class="st" id="sync-status"></div>
+      <div class="row">
+        <button id="btn-sync-push" class="primary" hidden>Publier…</button>
+        <button id="btn-sync-discard" hidden class="tiny" title="Abandonner les modifications non publiées">Annuler</button>
+        <button id="btn-sync-check" class="tiny" title="Vérifier si le repo a changé">Synchro.</button>
+      </div>
+      <div class="msg" id="sync-msg" hidden></div>
+    </div>
+    <div class="sync-pill" id="sync-pill" role="button" tabindex="0" aria-expanded="false">
+      <span class="dot"></span><span id="sync-pill-text">repo</span><span class="when" id="sync-when" hidden></span><span class="arrow">▲</span>
+    </div>
+  </div>
+
+  <footer>
+    <details>
+      <summary>Mode d'emploi</summary>
+      <ul>
+        <li><b>Charger</b> : désignez une fois le dossier des fiches (<code>Personnages/pj/</code> ou la racine du projet, le sous-dossier est détecté). Le dossier est mémorisé dans ce navigateur ; à la prochaine ouverture il suffit de ré-autoriser l'accès.</li>
+        <li><b>Valeurs courantes</b> (PV, chance, PA, capsules, munitions, poids porté, objets, statut…) : <b>un clic</b> ouvre la saisie. Entrée ou sortie du champ valide ; Échap annule.</li>
+        <li><b>Valeurs de progression</b> (S.P.E.C.I.A.L., rangs et atouts de compétences, PV max, niveau, PE, statistiques dérivées) : <b>double-clic</b> pour éditer, puis une confirmation est demandée à la validation. Les SR (et les jets composites) sont recalculés automatiquement.</li>
+        <li><b>Sauvegarder</b> : liste les changements et demande confirmation, puis réécrit <i>uniquement</i> les valeurs modifiées dans le fichier <code>.md</code> (le reste du fichier est conservé octet pour octet). La date <code>mise_a_jour</code> du front-matter est actualisée.</li>
+        <li>Les objets d'inventaire s'éditent en Markdown brut (le gras et les apartés sont conservés). <b>Barrer</b> applique la convention <code>~~objet~~</code> du projet ; <b>+ Objet</b> ajoute une ligne à la fin de la section Inventaire.</li>
+        <li><b>Repo GitHub</b> : les fiches publiées sont dans la liste en tête de la modale de chargement (tous navigateurs). Les modifications sont mémorisées automatiquement dans ce navigateur ; <b>Publier</b> affiche le récapitulatif puis crée un commit sur le repo (nom de joueur + mot de passe). Si le repo a changé entre-temps, vos modifications sont reportées sur la nouvelle version ; les champs modifiés des deux côtés sont à trancher dans le récapitulatif.</li>
+        <li>Navigateur requis pour l'accès direct aux fichiers : Chrome ou Edge (API File System Access). Ailleurs, l'application bascule sur un sélecteur de fichier classique et la sauvegarde devient un téléchargement.</li>
+      </ul>
+    </details>
+  </footer>
+</div>
+
+<!-- ---------- modale de chargement ---------- -->
+<div class="modal-bg" id="m-load">
+  <div class="modal">
+    <div class="modal-head"><h3>Charger une fiche de PJ</h3><button class="tiny" data-close="m-load">✕</button></div>
+    <div class="modal-body">
+      <div class="repo-box" id="load-repo">
+        <div class="t"><span>REPO GITHUB — fiches publiées</span><button id="btn-repo-refresh" class="tiny">Actualiser</button></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select id="repo-select" style="flex:1;min-width:220px"><option value="">— chargement —</option></select>
+          <button id="btn-repo-load" class="primary" disabled>Charger</button>
+        </div>
+        <div class="hint" style="margin-top:6px">Chargée depuis le repo, une fiche se sauvegarde en brouillon local puis se publie (commit) depuis la barre de synchronisation.</div>
+      </div>
+      <div id="load-fs">
+        <div class="path-box">
+          <div class="p"><span id="dir-path">Aucun dossier mémorisé</span><small id="dir-hint">Repli : choisissez le dossier où se trouve cette application (ou la racine du projet Fallout_JDR).</small></div>
+          <button id="btn-dir">Choisir le dossier…</button>
+          <button id="btn-dir-auth" hidden>Autoriser l'accès</button>
+        </div>
+        <div class="file-list" id="file-list"><div class="none">— aucun dossier —</div></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:8px;flex-wrap:wrap">
+          <span class="hint">Cliquez une fiche pour la charger. Les fiches-branches (sous-dossiers) ne sont pas listées.</span>
+          <button id="btn-file-any" class="tiny">Ouvrir un fichier ailleurs…</button>
+        </div>
+      </div>
+      <div id="load-fallback" hidden>
+        <div class="warn">Ce navigateur ne propose pas l'API File System Access : le dossier ne peut pas être mémorisé et la sauvegarde sera un téléchargement du fichier modifié.</div>
+        <input type="file" id="file-input" accept=".md,text/markdown">
+      </div>
+      <div class="err" id="load-err" hidden></div>
+    </div>
+    <div class="modal-foot"><button data-close="m-load">Fermer</button></div>
+  </div>
+</div>
+
+<!-- ---------- modale de confirmation d'un champ protégé ---------- -->
+<div class="modal-bg" id="m-confirm">
+  <div class="modal" style="width:min(520px,100%)">
+    <div class="modal-head"><h3>Confirmer la modification</h3></div>
+    <div class="modal-body">
+      <div class="hint">Valeur de progression — ne change normalement qu'au passage de niveau.</div>
+      <div class="confirm-line" id="confirm-line"></div>
+      <div class="hint" id="confirm-extra"></div>
+    </div>
+    <div class="modal-foot"><button id="confirm-no">Annuler</button><button id="confirm-yes" class="primary">Confirmer</button></div>
+  </div>
+</div>
+
+<!-- ---------- modale de sauvegarde ---------- -->
+<div class="modal-bg" id="m-save">
+  <div class="modal">
+    <div class="modal-head"><h3 id="save-title">Sauvegarder dans le fichier .md</h3><button class="tiny" data-close="m-save">✕</button></div>
+    <div class="modal-body">
+      <div class="hint" style="margin-bottom:8px">Fichier : <span id="save-file" style="color:var(--accent)"></span></div>
+      <div class="changes" id="save-changes"></div>
+      <div id="save-conflicts" hidden>
+        <div class="hint" style="margin:12px 0 6px;color:var(--red)">Conflits — le repo a changé ces valeurs depuis votre chargement. Choisissez celle à conserver :</div>
+        <div class="changes" id="save-conflict-list"></div>
+      </div>
+      <div class="row" id="save-cred" hidden style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px">
+        <input id="save-name" placeholder="Joueur" autocomplete="username" style="width:130px">
+        <input id="save-pwd" type="password" placeholder="Mot de passe" autocomplete="current-password" style="width:150px">
+        <input id="save-msg" placeholder="Message de commit (facultatif)" style="flex:1;min-width:200px">
+      </div>
+      <div class="warn" id="save-warn" hidden></div>
+      <div class="err" id="save-err" hidden></div>
+    </div>
+    <div class="modal-foot"><button data-close="m-save">Annuler</button><button id="save-yes" class="primary">Écrire le fichier</button></div>
+  </div>
+</div>
+
+<!-- ---------- modale générique (question oui/non) ---------- -->
+<div class="modal-bg" id="m-ask">
+  <div class="modal" style="width:min(520px,100%)">
+    <div class="modal-head"><h3 id="ask-title">Question</h3></div>
+    <div class="modal-body" id="ask-body"></div>
+    <div class="modal-foot"><button id="ask-no">Annuler</button><button id="ask-yes" class="primary">Confirmer</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ======================================================================
+   FicheParser — parseur tolérant des fiches PJ Markdown (Fallout 2d20)
+   Chaque valeur éditable conserve son intervalle [start, end) dans le
+   texte source, ce qui permet une réécriture ciblée (jamais de
+   régénération du fichier).
+   ====================================================================== */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.FicheParser = factory();
+}(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  const ATTRS = ['FOR', 'PER', 'END', 'CHR', 'INT', 'AGI', 'CHA'];
+  const ATTR_LABELS = { FOR: 'Force', PER: 'Perception', END: 'Endurance', CHR: 'Charisme', INT: 'Intelligence', AGI: 'Agilité', CHA: 'Chance' };
+  const LETTER_TO_ATTR = { S: 'FOR', P: 'PER', E: 'END', C: 'CHR', I: 'INT', A: 'AGI', L: 'CHA' };
+  const SKILLS = ['Armes à énergie', 'Armes de corps à corps', 'Armes légères', 'Armes lourdes', 'Athlétisme', 'Crochetage', 'Discours', 'Discrétion', 'Explosifs', 'Mains nues', 'Médecine', 'Pilotage', 'Projectiles', 'Réparation', 'Science', 'Survie', 'Troc'];
+  const SKILL_ATTR = { 'Armes à énergie': 'PER', 'Armes de corps à corps': 'FOR', 'Armes légères': 'AGI', 'Armes lourdes': 'END', 'Athlétisme': 'FOR', 'Crochetage': 'PER', 'Discours': 'CHR', 'Discrétion': 'AGI', 'Explosifs': 'PER', 'Mains nues': 'FOR', 'Médecine': 'INT', 'Pilotage': 'PER', 'Projectiles': 'AGI', 'Réparation': 'INT', 'Science': 'INT', 'Survie': 'END', 'Troc': 'CHR' };
+
+  const norm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const stripMd = s => String(s || '').replace(/\*\*|__|~~|`/g, '').replace(/(^|[^*])\*([^*]+)\*/g, '$1$2').trim();
+
+  /* ---------- découpage en lignes avec offsets ---------- */
+  function splitLines(text) {
+    const lines = [];
+    let pos = 0;
+    for (const raw of text.split('\n')) {
+      const hasCR = raw.endsWith('\r');
+      const body = hasCR ? raw.slice(0, -1) : raw;
+      lines.push({ text: body, start: pos, end: pos + body.length, nl: pos + raw.length + 1 });
+      pos += raw.length + 1;
+    }
+    return lines;
+  }
+
+  /* ---------- front-matter YAML minimal ---------- */
+  function parseFrontMatter(lines) {
+    const fm = { data: {}, spans: {}, end: 0 };
+    if (!lines.length || lines[0].text.trim() !== '---') return fm;
+    let i = 1, lastKey = null;
+    for (; i < lines.length; i++) {
+      const L = lines[i];
+      if (L.text.trim() === '---') { fm.end = i + 1; break; }
+      let m = /^([A-Za-z_][\w-]*):\s*(.*)$/.exec(L.text);
+      if (m) {
+        lastKey = m[1];
+        const val = m[2].trim();
+        if (val === '') fm.data[lastKey] = [];
+        else {
+          fm.data[lastKey] = val.replace(/^["']|["']$/g, '');
+          const vs = L.text.indexOf(m[2]);
+          fm.spans[lastKey] = { start: L.start + vs, end: L.start + vs + m[2].trim().length };
+        }
+        continue;
+      }
+      m = /^\s+-\s+(.*)$/.exec(L.text);
+      if (m && lastKey && Array.isArray(fm.data[lastKey])) fm.data[lastKey].push(m[1].replace(/^["']|["']$/g, '').trim());
+    }
+    return fm;
+  }
+
+  /* ---------- sections « ## » ---------- */
+  function splitSections(lines, from) {
+    const secs = [];
+    let cur = null;
+    for (let i = from; i < lines.length; i++) {
+      const m = /^(#{1,3})\s+(.*)$/.exec(lines[i].text);
+      if (m && m[1].length <= 2) {
+        if (cur) cur.to = i;
+        cur = { title: m[2].trim(), key: norm(m[2]), level: m[1].length, from: i + 1, to: lines.length, line: i };
+        secs.push(cur);
+      }
+    }
+    return secs;
+  }
+  const findSec = (secs, re) => secs.find(s => re.test(s.key));
+  const findSecs = (secs, re) => secs.filter(s => re.test(s.key));
+
+  /* ---------- cellules de tableau avec offsets ---------- */
+  function tableCells(L) {
+    const t = L.text;
+    if (!/^\s*\|/.test(t)) return null;
+    const cells = [];
+    let i = t.indexOf('|') + 1;
+    while (i <= t.length) {
+      let j = t.indexOf('|', i);
+      if (j < 0) { if (t.slice(i).trim()) cells.push(mk(i, t.length)); break; }
+      cells.push(mk(i, j));
+      i = j + 1;
+    }
+    function mk(a, b) {
+      const raw = t.slice(a, b);
+      const lead = raw.length - raw.trimStart().length;
+      const trimmed = raw.trim();
+      return { raw, text: trimmed, start: L.start + a + lead, end: L.start + a + lead + trimmed.length, cellStart: L.start + a, cellEnd: L.start + b };
+    }
+    return cells;
+  }
+  const isSepRow = L => /^\s*\|?\s*:?-{2,}/.test(L.text) && /^[\s|:\-]+$/.test(L.text);
+
+  /* ---------- extraction d'un nombre avec span ---------- */
+  function numAt(text, base, re) {
+    const m = re.exec(text);
+    if (!m) return null;
+    const grp = m.length > 1 ? m[1] : m[0];
+    const idx = m.index + m[0].indexOf(grp);
+    return { value: grp, start: base + idx, end: base + idx + grp.length };
+  }
+  const firstBoldNum = (text, base) => numAt(text, base, /\*\*\s*(\d+(?:[.,]\d+)?)\s*\*\*/) ;
+  const firstNum = (text, base) => numAt(text, base, /(\d+(?:[.,]\d+)?)/);
+  const boldOrFirstNum = (text, base) => firstBoldNum(text, base) || firstNum(text, base);
+
+  /* ======================================================================
+     PARSE
+     ====================================================================== */
+  function parse(text) {
+    const lines = splitLines(text);
+    const fm = parseFrontMatter(lines);
+    const secs = splitSections(lines, fm.end);
+    const F = {};                      // champs éditables : clé → {value,start,end,mode,label,type}
+    const field = (key, o, mode, label, type) => { if (o) F[key] = Object.assign({ mode, label, type: type || 'int' }, o); return o; };
+    const meta = {};
+
+    /* --- méta --- */
+    meta.nom = fm.data.nom || '';
+    meta.joueur = fm.data.joueur || '';
+    meta.campagnes = Array.isArray(fm.data.campagnes) ? fm.data.campagnes : (fm.data.campagnes ? [fm.data.campagnes] : []);
+    meta.origine = fm.data.origine || '';
+    meta.version = fm.data.version || '';
+    meta.mise_a_jour = fm.data.mise_a_jour || '';
+    meta.source = fm.data.source || '';
+    if (fm.spans.niveau_pj) field('niveau', { value: fm.data.niveau_pj, ...fm.spans.niveau_pj }, 'protected', 'Niveau');
+    if (fm.spans.pe) field('pe', { value: fm.data.pe, ...fm.spans.pe }, 'protected', 'PE');
+    else if (fm.spans.pe_actuels) field('pe', { value: fm.data.pe_actuels, ...fm.spans.pe_actuels }, 'protected', 'PE');
+    if (fm.spans.pe_prochain_niveau) field('peNext', { value: fm.data.pe_prochain_niveau, ...fm.spans.pe_prochain_niveau }, 'protected', 'PE prochain niveau');
+    if (fm.spans.mise_a_jour) F.mise_a_jour = { value: fm.data.mise_a_jour, ...fm.spans.mise_a_jour, mode: 'auto', label: 'Mise à jour', type: 'text' };
+    // résumé (citation juste après le front-matter)
+    for (let i = fm.end; i < Math.min(lines.length, fm.end + 8); i++) {
+      const m = /^>\s*(.*)$/.exec(lines[i].text);
+      if (m && m[1].trim()) { meta.resume = stripMd(m[1].replace(/^Résumé\s*:\s*/i, '')); break; }
+    }
+    // titre H1
+    const h1 = lines.find(L => /^#\s+\S/.test(L.text));
+    meta.titre = h1 ? stripMd(h1.text.replace(/^#\s+/, '')) : meta.nom;
+
+    /* --- Identité (origine si absente du front-matter) --- */
+    const secId = findSec(secs, /identite/);
+    if (secId) {
+      for (let i = secId.from; i < secId.to; i++) {
+        const m = /^\s*-\s*\*\*Origine\*\*\s*:\s*(.*)$/i.exec(lines[i].text);
+        if (m && !meta.origine) meta.origine = stripMd(m[1]);
+        const a = /^\s*-\s*\*\*Apparence\*\*\s*:\s*(.*)$/i.exec(lines[i].text);
+        if (a) meta.apparence = stripMd(a[1]);
+      }
+    }
+    // Progression (niveau / PE / palier)
+    const secProg = findSec(secs, /progression/);
+    if (secProg) {
+      for (let i = secProg.from; i < secProg.to; i++) {
+        const c = tableCells(lines[i]);
+        if (!c || c.length < 2) continue;
+        const k = norm(c[0].text);
+        if (/^\**niveau\**$/.test(k) && !F.niveau) field('niveau', boldOrFirstNum(c[1].text, c[1].start), 'protected', 'Niveau');
+        else if (/pe totaux|pe actuels|^\**pe\**$/.test(k)) field('pe', boldOrFirstNum(c[1].text, c[1].start), 'protected', 'PE');
+        else if (/prochain palier|prochain niveau/.test(k) && !F.peNext) field('peNext', numAt(c[1].text, c[1].start, /(\d+)\s*PE/) || boldOrFirstNum(c[1].text, c[1].start), 'protected', 'PE prochain niveau');
+      }
+    }
+
+    /* --- S.P.E.C.I.A.L. --- */
+    const special = {};
+    const secSp = findSec(secs, /s\.p\.e\.c\.i\.a\.l|caracteristiques|special/);
+    const spLines = secSp ? lines.slice(secSp.from, secSp.to) : lines.slice(fm.end);
+    (function parseSpecial() {
+      // Format 2 : tableau horizontal (en-tête des 7 abréviations puis ligne de valeurs)
+      for (let i = 0; i < spLines.length - 2; i++) {
+        const h = tableCells(spLines[i]);
+        if (!h || h.length < 7) continue;
+        const heads = h.map(c => stripMd(c.text).toUpperCase());
+        if (!ATTRS.every(a => heads.includes(a))) continue;
+        const vRow = spLines.slice(i + 1).find(L => tableCells(L) && !isSepRow(L));
+        if (!vRow) continue;
+        const v = tableCells(vRow);
+        ATTRS.forEach(a => { const ci = heads.indexOf(a); if (v[ci]) special[a] = boldOrFirstNum(v[ci].text, v[ci].start); });
+        if (Object.keys(special).length === 7) return;
+      }
+      // Format 1 : tableau vertical  | **FOR** (Force) | 8 |   ou   | **Force (FOR)** | 5 | notes |
+      for (const L of spLines) {
+        const c = tableCells(L);
+        if (!c || c.length < 2 || isSepRow(L)) continue;
+        const lab = stripMd(c[0].text).toUpperCase();
+        const a = ATTRS.find(x => new RegExp('\\b' + x + '\\b').test(lab)) || ATTRS.find(x => lab.startsWith(ATTR_LABELS[x].toUpperCase()));
+        if (a && !special[a]) special[a] = boldOrFirstNum(c[1].text, c[1].start);
+      }
+      if (Object.keys(special).length === 7) return;
+      // Format 3 : ligne  - FOR 4 | PER 7 | ...   ou  - S 6 | P 8 | ...
+      for (const L of spLines) {
+        if (!/^\s*-\s/.test(L.text) && !/^\s*\*\*?FOR/.test(L.text)) continue;
+        const re = /\b(FOR|PER|END|CHR|INT|AGI|CHA|S|P|E|C|I|A|L)\b\**\s+\**(\d+)\b/g;
+        let m, found = {};
+        while ((m = re.exec(L.text))) {
+          const a = ATTRS.includes(m[1]) ? m[1] : LETTER_TO_ATTR[m[1]];
+          if (!a || found[a]) continue;
+          const idx = m.index + m[0].lastIndexOf(m[2]);
+          found[a] = { value: m[2], start: L.start + idx, end: L.start + idx + m[2].length };
+        }
+        if (Object.keys(found).length >= 5) { Object.assign(special, found); return; }
+      }
+    })();
+    ATTRS.forEach(a => { if (special[a]) field('special.' + a, special[a], 'protected', ATTR_LABELS[a] + ' (' + a + ')'); });
+
+    /* --- Compétences --- */
+    const skills = [];
+    const secSk = findSec(secs, /^competences/);
+    if (secSk) {
+      for (let i = secSk.from; i < secSk.to; i++) {
+        const L = lines[i];
+        const c = tableCells(L);
+        if (!c || c.length < 4 || isSepRow(L)) continue;
+        const name = stripMd(c[0].text);
+        const canon = SKILLS.find(s => norm(s) === norm(name));
+        if (!canon) continue;
+        const rang = firstNum(c[2].text, c[2].start);
+        const sr = firstNum(c[3].text, c[3].start);
+        const tagCell = c[4] || null;
+        const sk = { nom: canon, att: stripMd(c[1].text).toUpperCase() || SKILL_ATTR[canon], rang, sr,
+          tag: tagCell ? { value: /★|✓|x|X|oui/.test(tagCell.text), start: tagCell.cellStart, end: tagCell.cellEnd } : { value: false } };
+        skills.push(sk);
+        field('skill.' + canon + '.rang', rang, 'protected', 'Rang ' + canon);
+        field('skill.' + canon + '.sr', sr, 'auto', 'SR ' + canon);
+        if (tagCell) field('skill.' + canon + '.tag', { value: sk.tag.value, start: tagCell.cellStart, end: tagCell.cellEnd }, 'protected', 'Atout ' + canon, 'tag');
+      }
+    }
+
+    /* --- Statistiques dérivées --- */
+    const derived = {};
+    const secDer = findSec(secs, /statistiques derivees/);
+    const derivedKeys = [
+      ['pvMax', /^pv max|^points de vie|^pv$/, 'int', 'PV max'],
+      ['chargeMax', /charge max/, 'int', 'Charge max'],
+      ['initiative', /^initiative/, 'int', 'Initiative'],
+      ['defense', /^defense/, 'int', 'Défense'],
+      ['cac', /degats|d[ée]g[âa]ts|bonus/, 'text', 'Dégâts CàC'],
+      ['chanceMax', /points? de chance/, 'int', 'Points de chance max'],
+      ['rdRad', /rd radiation/, 'text', 'RD radiation'],
+      ['rdPoison', /rd poison/, 'text', 'RD poison'],
+    ];
+    if (secDer) {
+      for (let i = secDer.from; i < secDer.to; i++) {
+        const L = lines[i];
+        let label, valText, valBase;
+        const c = tableCells(L);
+        if (c && c.length >= 2 && !isSepRow(L)) { label = norm(stripMd(c[0].text)); valText = c[1].text; valBase = c[1].start; }
+        else {
+          const m = /^\s*-\s*(.*?)\s*:\s*(.*)$/.exec(L.text);
+          if (!m) continue;
+          label = norm(stripMd(m[1])); valText = m[2]; valBase = L.start + L.text.indexOf(m[2]);
+        }
+        if (/statistique|^valeur/.test(label)) continue;
+        for (const [key, re, type, lab] of derivedKeys) {
+          if (derived[key] || !re.test(label)) continue;
+          if (key === 'chanceMax') {
+            const rest = numAt(L.text, L.start, /restants?\s*:\s*\**(\d+)/i);
+            if (rest) { derived.chanceCur = rest; field('chanceCur', rest, 'simple', 'Points de chance'); }
+          }
+          const vt = valText.replace(/\*\((?:.*)\)\*\s*$/, ''); // ignore l'aparté italique final
+          let o = type === 'int' ? boldOrFirstNum(vt, valBase) : null;
+          if (type === 'text' || !o) {
+            const lead = vt.length - vt.trimStart().length;
+            const tv = stripMd(vt);
+            const raw = vt.trim();
+            o = { value: tv, start: valBase + lead, end: valBase + lead + raw.length, raw };
+          }
+          derived[key] = o;
+          field(key, o, 'protected', lab, type);
+          break;
+        }
+        // RD inline (Elias) : - **RD** : buste Bal 1 / Énerg 2 / Rad 0 (...)
+        if (/^rd$/.test(label)) derived.rdInline = stripMd(valText);
+      }
+    }
+
+    /* --- État courant --- */
+    const etat = {};
+    const secEt = findSec(secs, /^etat courant/);
+    if (secEt) {
+      for (let i = secEt.from; i < secEt.to; i++) {
+        const L = lines[i];
+        let label, valText, valBase;
+        const c = tableCells(L);
+        if (c && c.length >= 2 && !isSepRow(L)) { label = norm(stripMd(c[0].text)); valText = c[1].text; valBase = c[1].start; }
+        else {
+          const m = /^\s*-\s*(.*?)\s*:\s*(.*)$/.exec(L.text);
+          if (!m) continue;
+          label = norm(stripMd(m[1])); valText = m[2]; valBase = L.start + L.text.indexOf(m[2]);
+        }
+        if (/^stat$|^valeur$/.test(label)) continue;
+        const pair = (kCur, kMax, labCur, labMax, protectedMax) => {
+          const m = /(\d+|—|-)\s*\/\s*(\d+)/.exec(valText);
+          if (!m) return false;
+          const i1 = m.index + m[0].indexOf(m[1]);
+          const i2 = m.index + m[0].lastIndexOf(m[2]);
+          etat[kCur] = { value: m[1], start: valBase + i1, end: valBase + i1 + m[1].length };
+          etat[kMax] = { value: m[2], start: valBase + i2, end: valBase + i2 + m[2].length };
+          field(kCur, etat[kCur], 'simple', labCur, m[1] === '—' || m[1] === '-' ? 'text' : 'int');
+          field(kMax, etat[kMax], protectedMax ? 'protected' : 'simple', labMax);
+          return true;
+        };
+        if (/^pv max courant/.test(label)) { pair('pvMaxCur', 'pvMaxRef', 'PV max courant', 'PV max de référence', true); }
+        else if (/^pv\b|^points de vie/.test(label)) { if (!pair('pvCur', 'pvMax2', 'PV courants', 'PV max', true)) { etat.pvCur = boldOrFirstNum(valText, valBase); field('pvCur', etat.pvCur, 'simple', 'PV courants'); } }
+        else if (/chance/.test(label)) { if (!pair('chanceCur', 'chanceMax2', 'Points de chance', 'Points de chance max', true)) { etat.chanceCur = boldOrFirstNum(valText, valBase); field('chanceCur', etat.chanceCur, 'simple', 'Points de chance'); } }
+        else if (/^(ap|pa)\b/.test(label)) {
+          const o = firstNum(valText, valBase);
+          if (o && !/pas de pool/i.test(valText)) { etat.ap = o; field('ap', o, 'simple', 'PA joueur'); }
+          else etat.apText = stripMd(valText);
+        }
+        else if (/encombrement/.test(label)) {
+          const m = /([\d,.]+|—|-)\s*\/\s*(\d+)/.exec(valText);
+          if (m) {
+            const i1 = m.index + m[0].indexOf(m[1]); const i2 = m.index + m[0].lastIndexOf(m[2]);
+            etat.poidsCur = { value: m[1], start: valBase + i1, end: valBase + i1 + m[1].length };
+            etat.poidsMax = { value: m[2], start: valBase + i2, end: valBase + i2 + m[2].length };
+            field('poidsCur', etat.poidsCur, 'simple', 'Poids porté', 'text');
+            field('poidsMax', etat.poidsMax, 'protected', 'Charge max (état)');
+          } else etat.poidsText = stripMd(valText);
+        }
+        else if (/munitions?\s+(.+)/.test(label)) {
+          const cal = /munitions?\s+(.+)/.exec(label)[1];
+          const o = boldOrFirstNum(valText, valBase);
+          if (o) { etat.ammo = etat.ammo || []; etat.ammo.push({ calibre: cal, qty: o, key: 'etat.ammo.' + cal }); field('etat.ammo.' + cal, o, 'simple', 'Munitions ' + cal); }
+        }
+        else {
+          const map = [['statut', /^statut/], ['localisation', /^localisation/], ['effets', /^effets/], ['blessures', /^blessures/], ['fusion', /fusion/], ['contrat', /^contrat/]];
+          const hit = map.find(([, re]) => re.test(label));
+          if (hit) {
+            const lead = valText.length - valText.trimStart().length;
+            const raw = valText.trim();
+            const o = { value: stripMd(raw), raw, start: valBase + lead, end: valBase + lead + raw.length };
+            etat[hit[0]] = o; field(hit[0], o, 'simple', hit[0][0].toUpperCase() + hit[0].slice(1), 'text');
+          }
+        }
+      }
+    }
+
+    /* --- RD par localisation --- */
+    const rd = {}; // head/torso/larm/rarm/lleg/rleg → {bal, en, rad}
+    (function parseRD() {
+      for (let i = 0; i < lines.length; i++) {
+        const c = tableCells(lines[i]);
+        if (!c || c.length < 3) continue;
+        const heads = c.map(x => norm(stripMd(x.text)));
+        if (!heads[0].startsWith('localisation') || !heads.some(h => /rd/.test(h))) continue;
+        const iBal = heads.findIndex(h => /bal/.test(h)), iEn = heads.findIndex(h => /energ/.test(h)), iRad = heads.findIndex(h => /rad/.test(h));
+        for (let j = i + 1; j < lines.length; j++) {
+          const r = tableCells(lines[j]);
+          if (!r) break;
+          if (isSepRow(lines[j])) continue;
+          const loc = norm(stripMd(r[0].text));
+          const v = { bal: iBal >= 0 && r[iBal] ? stripMd(r[iBal].text) : '', en: iEn >= 0 && r[iEn] ? stripMd(r[iEn].text) : '', rad: iRad >= 0 && r[iRad] ? stripMd(r[iRad].text) : '' };
+          const locs = [];
+          if (/buste|torse|poitrine/.test(loc)) locs.push('torso');
+          if (/tete|crane/.test(loc)) locs.push('head');
+          if (/bras/.test(loc)) { if (/gauche/.test(loc)) locs.push('larm'); else if (/droit/.test(loc)) locs.push('rarm'); else locs.push('larm', 'rarm'); }
+          if (/jambe/.test(loc)) { if (/gauche/.test(loc)) locs.push('lleg'); else if (/droit/.test(loc)) locs.push('rleg'); else locs.push('lleg', 'rleg'); }
+          locs.forEach(l => rd[l] = v);
+        }
+        return;
+      }
+      if (derived.rdInline) {
+        const m = /buste\s+bal\s*(\d+)\s*\/\s*[ée]nerg\.?\s*(\d+)\s*\/\s*rad\s*(\d+)/i.exec(derived.rdInline);
+        if (m) rd.torso = { bal: m[1], en: m[2], rad: m[3] };
+        if (/autres localisations\s*0/i.test(derived.rdInline)) ['head', 'larm', 'rarm', 'lleg', 'rleg'].forEach(l => { if (!rd[l]) rd[l] = { bal: '0', en: '0', rad: '0' }; });
+        const p = /poison\s*(\d+)/i.exec(derived.rdInline);
+        if (p && !derived.rdPoison) derived.rdPoison = { value: p[1] };
+      }
+    })();
+
+    /* --- Inventaire --- */
+    const inv = { items: [], weapons: [], ammo: [], caps: null, insertAt: null, sectionEnd: null };
+    const secInv = findSec(secs, /^inventaire/);
+    if (secInv) {
+      let lastItemLine = -1;
+      let tableHeads = null, skipTable = false;
+      for (let i = secInv.from; i < secInv.to; i++) {
+        const L = lines[i];
+        if (!L.text.trim()) continue;
+        if (/^#{3,}\s/.test(L.text)) { tableHeads = null; skipTable = false; continue; }
+        const c = tableCells(L);
+        let item = null, nameCell = null, detailCells = [];
+        if (c) {
+          if (isSepRow(L)) continue;
+          const heads = c.map(x => norm(stripMd(x.text)));
+          if (lines[i + 1] && isSepRow(lines[i + 1])) {
+            skipTable = !/^objet|^item|^nom|^equipement|^arme|^materiel|^possession/.test(heads[0] || '');
+            tableHeads = heads; continue;
+          }
+          if (skipTable || c.length < 2) continue;
+          const iW = tableHeads ? tableHeads.findIndex(h => /poids|kg/.test(h)) : -1;
+          detailCells = c.filter((x, k) => k !== 0 && k !== iW);
+          nameCell = c[0];
+          item = { kind: 'row', line: i, lineStart: L.start, lineEnd: L.end, name: stripMd(nameCell.text), nameRaw: nameCell.text,
+            nameSpan: { start: nameCell.start, end: nameCell.end }, detail: detailCells.map(x => stripMd(x.text)).filter(Boolean).join(' — '),
+            detailSpan: detailCells.length ? { start: detailCells[0].start, end: detailCells[0].end } : null,
+            weightCell: iW >= 0 && c[iW] ? c[iW] : null, fullText: c.map(x => stripMd(x.text)).join(' | ') };
+          if (item.weightCell) { const w = numAt(item.weightCell.text, item.weightCell.start, /([\d]+(?:[.,]\d+)?)/); item.weight = w; }
+          item.struck = /^~~.*~~$/.test(nameCell.text.trim());
+        } else {
+          let m = /^(\s*[-*]\s+)(.*)$/.exec(L.text);
+          if (!m) {
+            // paragraphe « **49 capsules** (...) » hors liste
+            const pc = /^\**(\d+)\**\s*capsules?\b/i.exec(L.text);
+            if (pc && !inv.caps) { const o = { value: pc[1], start: L.start + L.text.indexOf(pc[1]), end: L.start + L.text.indexOf(pc[1]) + pc[1].length }; inv.caps = o; field('caps', o, 'simple', 'Capsules'); }
+            continue;
+          }
+          const body = m[2];
+          const bodyStart = L.start + m[1].length;
+          const indent = m[1].length - m[1].trimStart().length;
+          item = { kind: 'bullet', line: i, lineStart: L.start, lineEnd: L.end, indent, textSpan: { start: bodyStart, end: L.end }, raw: body, fullText: stripMd(body) };
+          item.struck = /^~~/.test(body.trim());
+          // nom : premier gras, sinon texte avant « *( » / « ( » / « — » / « : »
+          const b = /^\s*(?:~~)?\s*\*\*([^*]+)\*\*/.exec(body);
+          let name = b ? b[1] : body.replace(/^~~/, '').split(/\s\*\(|\s\(|\s—|\s:\s|\s\+\s/)[0];
+          item.name = stripMd(name);
+          item.isHeader = /:\s*$/.test(body.trim()) || /\*\*\s*:\s*$/.test(body.trim());
+          const w = numAt(body, bodyStart, /([\d]+(?:[.,]\d+)?)\s*kg\b/);
+          if (w) item.weight = w;
+        }
+        lastItemLine = i;
+        // ---- classification ----
+        const nameN = norm(item.name);
+        const fullN = norm(item.fullText);
+        // capsules
+        const startN = norm(stripMd(item.kind === 'row' ? nameCell.text : item.raw));
+        if (/^capsules?\b/.test(startN) || /^\d+\s*capsules?\b/.test(startN)) {
+          const src = item.kind === 'row' ? (c[1] ? c[1] : c[0]) : { text: item.raw, start: item.textSpan.start };
+          const o = firstBoldNum(src.text, src.start) || firstNum(src.text, src.start);
+          if (o && !inv.caps) { inv.caps = o; field('caps', o, 'simple', 'Capsules'); item.category = 'caps'; }
+        }
+        const WEAP = /\b(pistolets?|revolvers?|fusils?|carabines?|sabres?|machettes?|couteaux?|demonte-pneus?|grenades?|mines?|mitraill\w*|minigun|laser|plasma|haches?|battes?|katana|[ée]p[ée]es?|marteaux?|lance-\w+|arcs?|arbal[eè]tes?|dards?|poings?|coup-de-poing|gatling|fl[ée]aux?|tuyaux?|clous?|tron[cç]onneuses?|masses?|pied de biche|nunchaku|shotgun)\b/;
+        // munitions
+        const ammoN = fullN.replace(/chargeurs?\s+(?:de\s+)?\d+\s+(?:balles?|cartouches?|coups?)/g, '');
+        if (!item.category && /\b(cartouches?|balles?|munitions?|cellules?|obus|carreaux|fl[eé]chettes?)\b/.test(ammoN)) {
+          const srcs = item.kind === 'row'
+            ? [{ text: nameCell.text, start: nameCell.start }, ...detailCells.map(x => ({ text: x.text, start: x.start }))]
+            : [{ text: item.raw, start: item.textSpan.start }];
+          const pats = [/×\s*\**(\d+)/, /\*\*\s*(\d+)\s*(?:cartouches?|balles?|munitions?|cellules?)/i, /(\d+)\s*(?:cartouches?|balles?|munitions?|cellules?|obus|carreaux)/i, /\*\*(\d+)\*\*/];
+          let q = null;
+          for (const src of srcs) { for (const re of pats) { q = numAt(src.text, src.start, re); if (q) break; } if (q) break; }
+          const weaponNamed = WEAP.test(nameN) && !/\bcartouches?|\bballes?|\bmunitions?|\bcellules?/.test(nameN);
+          if (!q && !weaponNamed) for (const src of srcs) { q = firstNum(src.text, src.start); if (q) break; }
+          if (!q && weaponNamed) { /* arme sans compte de munitions explicite : pas une ligne de munitions */ }
+          else {
+          const calM = /(\.\d{2,3}(?:\s*magnum)?|\d+\s*mm|calibre\s*\d+|cal\.?\s*\d+|\d+\s*gauge|cellules? (?:à )?fusion|micro-?fusion|cellules? (?:à )?[eé]nergie|fusion core|diverses|\.308|\.44|\.38|\.357|\.45|10 ?mm|5\.56|5\.56 ?mm|\.50|2 ?mm EC)/i.exec(item.fullText);
+          const cal = calM ? calM[1].replace(/\s+/g, ' ') : item.name;
+          const a = { name: item.name, calibre: cal, qty: q, struck: item.struck, item, key: 'ammo.' + inv.ammo.length };
+          inv.ammo.push(a);
+          if (q) field(a.key, q, 'simple', 'Munitions ' + cal);
+          item.category = 'ammo';
+          if (weaponNamed) item.category = null; // arme + munitions sur la même ligne
+          }
+        }
+        const WEAP_UNUSED = /\b(pistolets?|revolvers?|fusils?|carabines?|sabres?|machettes?|couteaux?|demonte-pneus?|grenades?|mines?|mitraill\w*|minigun|laser|plasma|haches?|battes?|katana|[ée]p[ée]es?|marteaux?|lance-\w+|arcs?|arbal[eè]tes?|dards?|poings?|coup-de-poing|gatling|fl[ée]aux?|tuyaux?|clous?|tron[cç]onneuses?|masses?|pied de biche|nunchaku|shotgun)\b/;
+        const hasCD = /\bCD\b/.test(item.fullText) || /\d\s*CD/.test(item.fullText);
+        if (!item.category) {
+          if (hasCD || (WEAP.test(nameN) && !/(kit|trousse|cartouches? de|holster|étui|cle |clé )/.test(nameN))) {
+            const t = item.fullText;
+            const dmg = (/(\d+)\s*CD/.exec(t) || /CD\s*\**\s*(\d+)/.exec(t) || [])[1] || '';
+            const effects = []; const eff = /(perforants?\s*\d?|brutal|zone|rafale|persistant|[ée]tourdissant|radioactif|d[ée]bilitant|inévitable|inevitable|perçant)/gi; let em;
+            while ((em = eff.exec(t))) { const e = em[1].replace(/\s+/g, ' '); if (!effects.some(x => norm(x) === norm(e))) effects.push(e); }
+            const type = (/\b(balistiques?|bal\b|[ée]nerg[ée]tiques?|[ée]nerg\b|explosi(?:fs|ves)?|radiation|poison)/i.exec(t) || [])[1] || '';
+            const rate = (/cadence\s*(\d)/i.exec(t) || [])[1] || '';
+            const range = (/port[ée]e\s*\**\s*(mêlée|melee|main|courte|moyenne|longue|extr[eê]me|C|M|L|E)\b/i.exec(t) || [])[1] || '';
+            const quals = []; const qre = /(combat rapproch[ée]|impr[ée]visible|deux mains|discr[eè]te?|lourde?|pr[ée]cise?|encombrante?|fiable|non fiable|munitions parcimonieuses|mala[ii]s[ée]e?|à une main|une main|cadence 0|d[ée]bilitante?|\blanc[ée]e?\b|\bmine\b|\bexplosif\b)/gi; let qm;
+            while ((qm = qre.exec(t))) { const q = qm[1]; if (!quals.some(x => norm(x) === norm(q))) quals.push(q); }
+            let skill = '';
+            if (/couteaux? de lancer|lancer|grenade|projectile/.test(nameN + ' ' + fullN) && /lancer|grenade/.test(nameN)) skill = /grenade|mine/.test(nameN) ? 'Explosifs' : 'Projectiles';
+            else if (/laser|plasma|gatling laser|fusil à impulsion/.test(nameN)) skill = 'Armes à énergie';
+            else if (/minigun|lance-flammes|lance-roquettes|fat man|mitrailleuse|gatling/.test(nameN)) skill = 'Armes lourdes';
+            else if (/pistolet|revolver|fusil|carabine|mitraill|shotgun|calibre 12/.test(nameN)) skill = 'Armes légères';
+            else if (/grenade|mine\b|explosif/.test(nameN)) skill = 'Explosifs';
+            else if (/poing|coup-de-poing|griffes/.test(nameN)) skill = 'Mains nues';
+            else if (WEAP.test(nameN)) skill = 'Armes de corps à corps';
+            const w = { name: item.name, skill, dmg, effects: effects.join(', '), type, rate, range, quals: quals.join(', '), weight: item.weight ? item.weight.value : '', struck: item.struck, item, detail: item.fullText };
+            const ammoM = /(\.\d{2,3}|\d+\s*mm|calibre\s*\d+|cellules? (?:à )?fusion|micro-?fusion|cellules? (?:à )?[eé]nergie|\d+\s*cartouches? [^,;)*]+)/i.exec(t);
+            w.ammo = ammoM ? ammoM[1] : '';
+            inv.weapons.push(w);
+            if (!item.category) item.category = 'weapon';
+          }
+        }
+        if (!item.category) item.category = item.isHeader ? 'header' : 'gear';
+        item.key = 'inv.' + inv.items.length;
+        inv.items.push(item);
+        // champs éditables texte
+        if (item.kind === 'bullet') field(item.key + '.text', { value: item.raw, start: item.textSpan.start, end: item.textSpan.end }, 'simple', 'Objet', 'text');
+        else {
+          field(item.key + '.name', { value: nameCell.text, start: nameCell.start, end: nameCell.end }, 'simple', 'Objet', 'text');
+          if (item.detailSpan) { const dc = detailCells[0]; field(item.key + '.detail', { value: dc.text, start: dc.start, end: dc.end }, 'simple', 'Détail', 'text'); }
+        }
+        if (item.weight) field(item.key + '.weight', item.weight, 'simple', 'Poids', 'num');
+      }
+      if (lastItemLine >= 0) inv.insertAt = { line: lastItemLine, pos: lines[lastItemLine].end, kind: inv.items[inv.items.length - 1].kind, indent: inv.items[inv.items.length - 1].indent || 0, cols: tableHeads ? tableHeads.length : 0 };
+      inv.sectionEnd = lines[secInv.to - 1] ? lines[secInv.to - 1].end : null;
+    }
+
+    /* --- Aptitudes & traits --- */
+    const perks = [];
+    const perkSecs = findSecs(secs, /aptitude|traits?\b|origine/).filter(s => !/^identite/.test(s.key));
+    for (const s of perkSecs) {
+      let heads = null, pendingHead = null;
+      for (let i = s.from; i < s.to; i++) {
+        const L = lines[i];
+        const t = L.text;
+        if (!t.trim()) continue;
+        const h3 = /^###\s+(.*)$/.exec(t);
+        if (h3) {
+          const nm = /[—–:-]\s*\*?([^*(]+)\*?\s*(?:\(rang\s*(\d+)\))?/.exec(h3[1]);
+          pendingHead = { name: stripMd(nm ? nm[1] : h3[1]).trim(), rank: nm && nm[2] ? nm[2] : '', effect: [], kind: /trait/i.test(h3[1]) ? 'Trait' : 'Aptitude' };
+          perks.push(pendingHead); continue;
+        }
+        const c = tableCells(L);
+        if (c) {
+          if (isSepRow(L)) continue;
+          const hn = c.map(x => norm(stripMd(x.text)));
+          if (hn.some(x => /^nom$|^effet|^prerequis|^benefice|^revers|^trait$/.test(x)) && hn.filter(Boolean).length >= 2 && !hn.some(x => /\d/.test(x))) { heads = hn; continue; }
+          if (c.length < 2) continue;
+          let kind = '', name = '', rank = '', effect = '';
+          if (heads && heads.some(h => /benefice/.test(h))) {
+            name = stripMd(c[0].text); kind = 'Trait';
+            const ib = heads.findIndex(h => /benefice/.test(h)), ir = heads.findIndex(h => /revers/.test(h));
+            effect = [ib >= 0 && c[ib] ? stripMd(c[ib].text) : '', ir >= 0 && c[ir] ? 'Revers : ' + stripMd(c[ir].text) : ''].filter(Boolean).join(' — ');
+          } else {
+            const first = stripMd(c[0].text);
+            if (/^(trait|aptitude|atout)/i.test(first) && c.length >= 3) {
+              kind = /trait/i.test(first) ? 'Trait' : 'Aptitude'; name = stripMd(c[1].text);
+              const rm = /niv\.?\s*(\d+)|rang\s*(\d+)/i.exec(first + ' ' + c[1].text); rank = rm ? (rm[1] || rm[2]) : '';
+              effect = c.slice(2).map(x => stripMd(x.text)).filter(Boolean).join(' — ');
+            } else { name = first; effect = c.slice(1).map(x => stripMd(x.text)).filter(Boolean).join(' — '); }
+          }
+          perks.push({ kind, name, rank, effect: [effect] });
+          pendingHead = null; continue;
+        }
+        const bm = /^(\s*)-\s+(.*)$/.exec(t);
+        if (bm) {
+          const isOrigSec = /origine/.test(s.key) && !/trait|aptitude/.test(s.key);
+          if (pendingHead && (bm[1].length > 0 || isOrigSec || !/^\*\*|^\*|^Aptitude|^Trait/.test(bm[2]))) { pendingHead.effect.push(stripMd(bm[2])); continue; }
+          const b = bm[2];
+          if (/origine/.test(s.key)) {
+            const tm = /^\*\*\s*Trait\s*:\s*([^*]+)\*\*\s*[—–:-]?\s*(.*)$/i.exec(b);
+            if (tm) { perks.push({ kind: 'Trait', name: stripMd(tm[1]).trim(), rank: '', effect: [stripMd(tm[2])] }); pendingHead = perks[perks.length - 1]; }
+            else if (!pendingHead) continue;
+            else pendingHead.effect.push(stripMd(b));
+            continue;
+          }
+          const nm = /^\**\s*(?:Aptitude|Trait)?\s*\**\s*[*_]{1,2}([^*_]+)[*_]{1,2}/.exec(b) || /^\*\*([^*]+)\*\*/.exec(b);
+          if (!nm) { if (pendingHead) pendingHead.effect.push(stripMd(b)); continue; }
+          const rm = /rang\s*(\d+)/i.exec(b);
+          const kind = /^\**\s*trait/i.test(b) ? 'Trait' : 'Aptitude';
+          let effect = b.slice(nm.index + nm[0].length).replace(/^\s*[:—–-]\s*/, '');
+          perks.push({ kind, name: stripMd(nm[1]).trim(), rank: rm ? rm[1] : '', effect: [stripMd(effect)] });
+          pendingHead = perks[perks.length - 1];
+          continue;
+        }
+        if (pendingHead && /^\S/.test(t) && !/^>/.test(t) && !/^#/.test(t)) pendingHead.effect.push(stripMd(t));
+      }
+    }
+    perks.forEach(p => { p.name = p.name.replace(/^(Trait|Aptitude)\s*:\s*/i, '').trim(); p.effect = p.effect.filter(Boolean).join(' ').replace(/^\(source[^)]*\)\s*/i, '').trim(); });
+    // dédoublonnage par nom
+    const seen = new Set();
+    const perksU = perks.filter(p => { const k = norm(p.name); if (!p.name || seen.has(k)) return false; seen.add(k); return true; });
+
+    /* --- Atouts personnels (fallback si pas de colonne ★) --- */
+    if (skills.length && !skills.some(s => s.tag.value)) {
+      const secAt = findSec(secs, /atouts personnels/);
+      const src = secAt ? lines.slice(secAt.from, secAt.to).map(L => L.text).join('\n') : '';
+      const re = /\*\*([^*]+)\*\*/g; let m;
+      while ((m = re.exec(src))) { const sk = skills.find(s => norm(s.nom) === norm(m[1])); if (sk) sk.tag.value = true; }
+    }
+
+    /* --- Résolutions croisées --- */
+    const val = o => (o && o.value != null ? o.value : null);
+    const num = o => { const v = parseInt(String(val(o) || '').replace(',', '.'), 10); return Number.isFinite(v) ? v : null; };
+    const view = {
+      pvMax: num(derived.pvMax) ?? num(etat.pvMax2) ?? num(etat.pvMaxRef),
+      pvCur: num(etat.pvCur),
+      pvMaxCur: num(etat.pvMaxCur),
+      chanceMax: num(derived.chanceMax) ?? num(etat.chanceMax2) ?? num(special.CHA),
+      chanceCur: num(etat.chanceCur) ?? num(derived.chanceCur),
+      chargeMax: num(derived.chargeMax) ?? num(etat.poidsMax) ?? (num(special.FOR) != null ? 75 + num(special.FOR) * 5 : null),
+      initiative: num(derived.initiative) ?? ((num(special.PER) != null && num(special.AGI) != null) ? num(special.PER) + num(special.AGI) : null),
+      defense: num(derived.defense) ?? (num(special.AGI) != null ? (num(special.AGI) >= 9 ? 2 : 1) : null),
+      cac: derived.cac ? derived.cac.value : (num(special.FOR) != null ? (num(special.FOR) >= 11 ? '+3 CD' : num(special.FOR) >= 9 ? '+2 CD' : num(special.FOR) >= 7 ? '+1 CD' : '—') : ''),
+      rdPoison: derived.rdPoison ? derived.rdPoison.value : '',
+      rdRad: derived.rdRad ? derived.rdRad.value : '',
+    };
+
+    return { meta, fm, special, skills, derived, etat, rd, inv, perks: perksU, fields: F, view, lines, secs, text };
+  }
+
+  /* ======================================================================
+     APPLICATION D'ÉDITIONS — réécriture ciblée par spans
+     edits : [{start, end, text}]  (insertion si start === end)
+     ====================================================================== */
+  function applyEdits(text, edits) {
+    const sorted = edits.slice().sort((a, b) => b.start - a.start || b.end - a.end);
+    for (let i = 1; i < sorted.length; i++) {
+      if (sorted[i].end > sorted[i - 1].start) throw new Error('Éditions chevauchantes : ' + JSON.stringify([sorted[i - 1], sorted[i]]));
+    }
+    let out = text;
+    for (const e of sorted) out = out.slice(0, e.start) + e.text + out.slice(e.end);
+    return out;
+  }
+
+  return { parse, applyEdits, ATTRS, ATTR_LABELS, SKILLS, SKILL_ATTR, norm, stripMd };
+}));
+
+</script>
+<script>
+(function () {
+  'use strict';
+  const P = window.FicheParser;
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const THEME_KEY = 'fallout-2d20-theme';
+  const hasFS = typeof window.showDirectoryPicker === 'function';
+
+  /* ============================== THÈME ============================== */
+  function applyTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    $$('[data-theme-btn]').forEach(b => b.classList.toggle('active', b.dataset.themeBtn === t));
+    try { localStorage.setItem(THEME_KEY, t); } catch (e) { /* ignore */ }
+  }
+  $$('[data-theme-btn]').forEach(b => b.addEventListener('click', () => applyTheme(b.dataset.themeBtn)));
+  (function initTheme() { let t = 'green'; try { t = localStorage.getItem(THEME_KEY) || 'green'; } catch (e) { } applyTheme(t === 'amber' ? 'amber' : 'green'); })();
+
+  /* ============================== IndexedDB (handles) ============================== */
+  const idb = {
+    open() { return new Promise((res, rej) => { const r = indexedDB.open('fiche-pj-fallout', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+    async get(k) { try { const db = await this.open(); return await new Promise((res, rej) => { const t = db.transaction('kv').objectStore('kv').get(k); t.onsuccess = () => res(t.result); t.onerror = () => rej(t.error); }); } catch (e) { return undefined; } },
+    async set(k, v) { try { const db = await this.open(); await new Promise((res, rej) => { const t = db.transaction('kv', 'readwrite').objectStore('kv').put(v, k); t.onsuccess = res; t.onerror = () => rej(t.error); }); } catch (e) { /* ignore */ } },
+  };
+
+  /* ============================== REPO (config) ============================== */
+  const REPO_API = 'https://alemanym.github.io/api-jdr/api';          // index des fiches publiées
+  const REPO_WORKER = 'https://api-jdr-edit.alemanym.workers.dev';    // lecture brute + publication
+  const DRAFT_KEY = id => 'fiche-pj:draft:' + id;
+  const CHECK_MIN_INTERVAL = 50_000; // vérifications automatiques : au plus une par minute environ
+  const CHECK_PERIOD = 60_000;       // vérification périodique quand l'onglet est visible
+  const CACHE_KEY = id => 'fiche-pj:cache:' + id;
+  const NAME_KEY = 'fiche-pj:player';
+  const PWD_KEY = 'fiche-pj:player-key'; // mémorisé en clair dans ce navigateur (usage : table entre amis)
+
+  /* ============================== ÉTAT ============================== */
+  const S = {
+    repo: null, // mode repo : { id, sha, baseText } — sha = version distante sur laquelle le texte courant est basé
+    text: null, parsed: null, edits: new Map(), // key → { field, value }
+    additions: [],                                // nouveaux objets d'inventaire (texte)
+    deletions: new Set(),                          // clés d'objets supprimés (ligne entière)
+    fileHandle: null, dirHandle: null, dirPath: [], fileName: '', lastModified: 0, legacyFile: null,
+  };
+  const today = () => new Date().toISOString().slice(0, 10);
+  const toast = (msg, ms = 2400) => { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), ms); };
+  const openModal = id => $('#' + id).classList.add('open');
+  const closeModal = id => $('#' + id).classList.remove('open');
+  $$('[data-close]').forEach(b => b.addEventListener('click', () => closeModal(b.dataset.close)));
+
+  function ask(title, html, yes = 'Confirmer') {
+    return new Promise(res => {
+      $('#ask-title').textContent = title; $('#ask-body').innerHTML = html; $('#ask-yes').textContent = yes;
+      openModal('m-ask');
+      const done = v => { closeModal('m-ask'); $('#ask-yes').onclick = $('#ask-no').onclick = null; res(v); };
+      $('#ask-yes').onclick = () => done(true); $('#ask-no').onclick = () => done(false);
+    });
+  }
+
+  const isDirty = () => S.edits.size > 0 || S.additions.length > 0 || S.deletions.size > 0;
+  function cur(key) { const e = S.edits.get(key); if (e) return e.value; const f = S.parsed && S.parsed.fields[key]; return f ? f.value : undefined; }
+  const curInt = key => { const v = parseInt(String(cur(key) ?? '').replace(',', '.'), 10); return Number.isFinite(v) ? v : null; };
+
+  function setEdit(key, value) {
+    const f = S.parsed.fields[key];
+    if (!f) return;
+    if (String(value) === String(f.value)) S.edits.delete(key); else S.edits.set(key, { field: f, value: String(value) });
+    // effets induits : SR = attribut + rang
+    if (key.startsWith('special.')) {
+      const att = key.split('.')[1];
+      S.parsed.skills.forEach(sk => { if (sk.att === att) recomputeSR(sk); });
+    } else if (/^skill\..*\.rang$/.test(key)) {
+      const sk = S.parsed.skills.find(s => 'skill.' + s.nom + '.rang' === key); if (sk) recomputeSR(sk);
+    }
+    updateStatus(); render();
+  }
+  function recomputeSR(sk) {
+    const att = curInt('special.' + sk.att), rang = curInt('skill.' + sk.nom + '.rang');
+    if (att == null || rang == null || !S.parsed.fields['skill.' + sk.nom + '.sr']) return;
+    const key = 'skill.' + sk.nom + '.sr', f = S.parsed.fields[key], v = String(att + rang);
+    if (v === String(f.value)) S.edits.delete(key); else S.edits.set(key, { field: f, value: v });
+  }
+
+  function updateStatus() {
+    const st = $('#file-status');
+    if (!S.parsed) { st.textContent = 'Aucune fiche chargée'; $('#btn-save').disabled = true; $('#btn-reload').disabled = true; return; }
+    const n = S.edits.size + S.additions.length + S.deletions.size;
+    const src = S.repo ? 'repo GitHub' : (S.dirPath.join(' › ') || (hasFS ? 'fichier isolé' : 'mode téléchargement'));
+    st.innerHTML = `<b>${esc(S.fileName)}</b> · ${esc(src)}` + (n ? ` · <span class="dirty">${n} modif.</span>` : ' · à jour');
+    $('#btn-save').disabled = !n; $('#btn-reload').disabled = false;
+    $('#btn-save').textContent = S.repo ? 'Publier' : 'Sauvegarder';
+    if (S.repo) { saveDraft(); updateSync(); }
+  }
+  window.addEventListener('beforeunload', e => { if (isDirty()) { e.preventDefault(); e.returnValue = ''; } });
+
+  /* ============================== RENDU ============================== */
+  function gearSvg(teeth = 12) {
+    const R = 50, r = 42, hub = 34, pts = [];
+    for (let i = 0; i < teeth; i++) {
+      const a0 = (i / teeth) * Math.PI * 2, w = Math.PI * 2 / teeth;
+      const seq = [[a0 - w * .22, r], [a0 - w * .14, R], [a0 + w * .14, R], [a0 + w * .22, r]];
+      seq.forEach(([a, rr]) => pts.push((50 + rr * Math.cos(a)).toFixed(2) + ',' + (50 + rr * Math.sin(a)).toFixed(2)));
+    }
+    return `<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M${pts.join('L')}Z"/><circle cx="50" cy="50" r="${hub}" fill="none" stroke="var(--line)" stroke-dasharray="2 3"/></svg>`;
+  }
+  const GEAR = gearSvg(12), GEAR16 = gearSvg(16);
+
+  function ed(key, opts = {}) {
+    const f = S.parsed.fields[key];
+    if (!f) return `<span class="empty" title="Non trouvé dans la fiche">${esc(opts.fallback ?? '—')}</span>`;
+    const v = cur(key);
+    const changed = S.edits.has(key);
+    const shown = f.type === 'text' && !opts.raw ? P.stripMd(v) : v;
+    const mode = opts.mode || f.mode;
+    const cls = 'ed' + (changed ? ' changed' : '') + (opts.block ? ' block' : '');
+    const title = mode === 'protected' ? 'Double-clic pour modifier (confirmation demandée)' : mode === 'simple' ? 'Clic pour modifier' : 'Valeur calculée';
+    if (mode === 'auto') return `<span class="ed auto${changed ? ' changed' : ''}" title="${title}">${esc(shown)}</span>`;
+    return `<span class="${cls}" data-key="${esc(key)}" data-mode="${mode}" data-type="${f.type}" title="${title}${changed ? ' — modifié (origine : ' + esc(f.value) + ')' : ''}">${esc(shown) || '<span class="empty">∅</span>'}</span>`;
+  }
+  function tagEl(sk) {
+    const key = 'skill.' + sk.nom + '.tag';
+    const f = S.parsed.fields[key];
+    const on = f ? (S.edits.has(key) ? S.edits.get(key).value === 'true' : f.value) : sk.tag.value;
+    const editable = !!f;
+    return `<span class="tag${on ? ' on' : ''}${S.edits.has(key) ? ' changed' : ''}" ${editable ? `data-tagkey="${esc(key)}" title="Double-clic pour basculer l'atout personnel"` : ''}>${on ? '★' : ''}</span>`;
+  }
+
+  function render() {
+    const p = S.parsed;
+    if (!p) { $('#sheet').hidden = true; $('#welcome').hidden = false; return; }
+    $('#welcome').hidden = true; $('#sheet').hidden = false;
+    const v = p.view;
+    // valeurs courantes (tenant compte des éditions)
+    const pvCur = curInt('pvCur'), pvMax = curInt('pvMax') ?? curInt('pvMax2') ?? v.pvMax;
+    const pvMaxCur = curInt('pvMaxCur') ?? pvMax;
+    const pct = pvMaxCur ? Math.max(0, Math.min(1, (pvCur ?? 0) / pvMaxCur)) : 0;
+    const hpCls = pvCur != null && pvMaxCur ? (pct <= .25 ? 'crit' : pct <= .5 ? 'warn' : '') : '';
+    const chanceMax = curInt('chanceMax') ?? curInt('chanceMax2') ?? v.chanceMax;
+    const chanceCur = curInt('chanceCur');
+    const cacKey = p.fields.cac ? 'cac' : null;
+    const chargeMax = curInt('chargeMax') ?? curInt('poidsMax') ?? v.chargeMax;
+    const forV = curInt('special.FOR');
+    const cacCalc = forV == null ? '' : (forV >= 11 ? '+3 CD' : forV >= 9 ? '+2 CD' : forV >= 7 ? '+1 CD' : '—');
+    const initCalc = (curInt('special.PER') ?? 0) + (curInt('special.AGI') ?? 0);
+    const defCalc = (curInt('special.AGI') ?? 0) >= 9 ? 2 : 1;
+
+    const skillsRows = p.skills.map(sk => `<tr>
+        <td>${esc(sk.nom)} <span class="att">[${esc(sk.att)}]</span></td>
+        <td class="c">${tagEl(sk)}</td>
+        <td class="num">${ed('skill.' + sk.nom + '.rang')}</td>
+        <td class="num"><b>${ed('skill.' + sk.nom + '.sr')}</b></td>
+      </tr>`).join('');
+
+    const rd = p.rd;
+    const loc = (id, label, dice) => { const r = rd[id] || {}; const cell = (k, lab) => `<div><b>${lab}</b><span>${esc(r[k] || (Object.keys(r).length ? '0' : '—'))}</span></div>`;
+      return `<div class="loc ${id}"><div class="lbl"><span>${label}</span><small>${dice}</small></div><div class="rd">${cell('bal', 'RD bal')}${cell('en', 'RD én.')}${cell('rad', 'RD rad')}</div></div>`; };
+
+    const wRows = p.inv.weapons.map(w => { const sk = p.skills.find(s => s.nom === w.skill); const tn = sk ? cur('skill.' + sk.nom + '.sr') : '';
+      return `<tr class="${w.struck ? 'struck' : ''}" title="${esc(w.detail)}">
+        <td>${esc(w.name)}</td><td>${esc(w.skill)}</td><td class="c">${esc(tn)}</td><td class="c">${sk ? tagEl(sk).replace(/data-tagkey="[^"]*"/, '') : ''}</td>
+        <td class="c">${w.dmg ? esc(w.dmg) + ' CD' : '—'}</td><td>${esc(w.effects) || '—'}</td><td>${esc(w.type) || '—'}</td><td class="c">${esc(w.rate) || '—'}</td>
+        <td class="c">${esc(w.range) || '—'}</td><td>${esc(w.quals) || '—'}</td><td>${esc(w.ammo) || '—'}</td><td class="c">${esc(w.weight) || '—'}</td></tr>`; }).join('') || '<tr><td colspan="12" class="empty">Aucune arme détectée dans l\'inventaire</td></tr>';
+
+    const ammoRows = [...p.inv.ammo.map(a => `<tr class="${a.struck ? 'struck' : ''}" title="${esc(a.item.fullText)}"><td>${esc(a.calibre)}<div class="hint">${esc(a.name !== a.calibre ? a.name : '')}</div></td><td class="num">${a.qty ? ed(a.key) : '—'}</td></tr>`),
+      ...(p.etat.ammo || []).map(a => `<tr><td>${esc(a.calibre)} <span class="hint">(état courant)</span></td><td class="num">${ed(a.key)}</td></tr>`)].join('') || '<tr><td colspan="2" class="empty">—</td></tr>';
+
+    const gearItems = p.inv.items.filter(it => !S.deletions.has(it.key) && (it.category === 'gear' || it.category === 'header' || it.category === 'ammo' || it.category === 'weapon'));
+    let sumW = 0;
+    const gearRows = gearItems.map(it => {
+      const txtKey = it.kind === 'bullet' ? it.key + '.text' : it.key + '.name';
+      const struck = /^~~/.test(String(cur(txtKey) || '').trim()) || it.struck;
+      const w = it.weight ? parseFloat(String(cur(it.key + '.weight')).replace(',', '.')) : NaN;
+      if (!struck && Number.isFinite(w)) sumW += w;
+      if (it.category === 'header') return `<tr class="hdr"><td colspan="3" style="padding-left:${6 + (it.indent || 0) * 4}px">${ed(txtKey)}</td></tr>`;
+      const catBadge = it.category === 'weapon' ? '<span class="kind">arme</span>' : it.category === 'ammo' ? '<span class="kind">mun.</span>' : '';
+      return `<tr class="${struck ? 'struck' : ''}" data-item="${esc(it.key)}">
+        <td style="padding-left:${6 + (it.indent || 0) * 8}px">${catBadge}${ed(txtKey, { block: true })}${it.kind === 'row' && it.detailSpan ? `<div class="hint">${ed(it.key + '.detail')}</div>` : ''}</td>
+        <td class="num">${it.weight ? ed(it.key + '.weight') : '<span class="hint">—</span>'}</td>
+        <td class="c" style="white-space:nowrap"><button class="tiny" data-strike="${esc(it.key)}" title="${struck ? 'Rétablir' : 'Barrer (~~objet~~)'}">${struck ? '↺' : '~~'}</button> <button class="tiny danger" data-del="${esc(it.key)}" title="Supprimer la ligne">✕</button></td></tr>`;
+    }).join('');
+    const addRows = S.additions.map((t, i) => `<tr><td><span class="ed changed block">${esc(t)}</span></td><td class="num">—</td><td class="c"><button class="tiny danger" data-unadd="${i}" title="Retirer l'ajout">✕</button></td></tr>`).join('');
+    const poidsCur = cur('poidsCur');
+    const poidsNum = parseFloat(String(poidsCur || '').replace(',', '.'));
+    const over = Number.isFinite(poidsNum) && chargeMax != null && poidsNum > chargeMax;
+
+    const perkRows = p.perks.map(pk => `<tr><td><span class="kind">${esc(pk.kind || '—')}</span>${esc(pk.name)}</td><td class="c">${esc(pk.rank) || '—'}</td><td class="perk-effect" title="${esc(pk.effect)}">${esc(pk.effect.length > 420 ? pk.effect.slice(0, 420) + ' \u2026' : pk.effect)}</td></tr>`).join('') || '<tr><td colspan="3" class="empty">—</td></tr>';
+
+    const etatLine = (lab, key, extra = '') => p.fields[key] ? `<div class="k">${lab}</div><div class="v">${ed(key, { block: true })}${extra}</div>` : '';
+
+    $('#sheet').innerHTML = `
+      <!-- ===== EN-TÊTE ===== -->
+      <div class="id-row">
+        <div class="panel id-name">
+          <div class="lbl">Nom du personnage</div>
+          <div class="val">${esc(p.meta.titre || p.meta.nom)}</div>
+          <div class="meta">Joueur : <b>${esc(p.meta.joueur || '—')}</b> · Campagne${p.meta.campagnes.length > 1 ? 's' : ''} : <b>${esc(p.meta.campagnes.join(', ') || '—')}</b> · Fiche v${esc(p.meta.version || '?')} du ${esc(p.meta.mise_a_jour || '?')}${p.meta.resume ? `<div style="margin-top:4px">${esc(p.meta.resume)}</div>` : ''}</div>
+        </div>
+        <div class="panel id-fields">
+          <div><span class="lbl">PE acquis</span><span class="val">${ed('pe', { fallback: '—' })}</span></div>
+          <div><span class="lbl">PE prochain niveau</span><span class="val">${ed('peNext', { fallback: '—' })}</span></div>
+          <div><span class="lbl">Origine</span><span class="val" style="font-size:13px;text-align:right">${esc(p.meta.origine || '—')}</span></div>
+        </div>
+        <div class="panel id-level"><div class="lbl">Niveau</div><div class="gear big">${GEAR16}<div class="gv">${ed('niveau', { fallback: '?' })}</div></div></div>
+      </div>
+
+      <!-- ===== S.P.E.C.I.A.L. ===== -->
+      <div class="panel"><div class="panel-body">
+        <div class="special-row">
+          ${P.ATTRS.map(a => `<div class="attr"><span class="ribbon">${esc(P.ATTR_LABELS[a])}</span><div class="gear">${GEAR}<div class="gv">${ed('special.' + a, { fallback: '?' })}<small>${a}</small></div></div></div>`).join('')}
+          <div class="attr luck-box"><span class="ribbon" style="background:var(--hi)">Points de chance</span>
+            <div class="gear">${GEAR}<div class="gv" style="font-size:22px">${ed('chanceCur', { fallback: chanceMax ?? '?' })}<small>sur ${ed('chanceMax', { fallback: chanceMax ?? '?' })}</small></div></div>
+          </div>
+        </div>
+      </div></div>
+
+      <div class="cols">
+        <!-- ===== COMPÉTENCES ===== -->
+        <div class="panel">
+          <div class="panel-head"><h2>Compétences</h2><span class="sub">★ atout · rang : double-clic · SR = attribut + rang</span></div>
+          <table><thead><tr><th>Nom</th><th class="c">★</th><th class="c">Rang</th><th class="c">SR</th></tr></thead><tbody>${skillsRows}</tbody></table>
+          ${(() => { const sv = p.skills.find(s => s.nom === 'Survie'); const per = curInt('special.PER'); const sr = sv && per != null ? per + (curInt('skill.Survie.rang') ?? 0) : null; return sr != null ? `<div class="panel-body hint">Jet composite fréquent — Observation (PER + Survie) : SR <b style="color:var(--accent)">${sr}</b></div>` : ''; })()}
+        </div>
+
+        <!-- ===== COMBAT ===== -->
+        <div class="sheet" style="gap:14px">
+          <div class="panel">
+            <div class="panel-head"><h2>Combat</h2><span class="sub">valeurs calculées si absentes de la fiche</span></div>
+            <div class="panel-body">
+              <div class="combat-top">
+                <div class="stat"><span class="lbl">Dégâts CàC</span><span class="val sm">${cacKey ? ed('cac') : esc(cacCalc)}</span></div>
+                <div class="stat"><span class="lbl">Défense</span><span class="val">${p.fields.defense ? ed('defense') : esc(defCalc)}</span></div>
+                <div class="stat"><span class="lbl">Initiative</span><span class="val">${p.fields.initiative ? ed('initiative') : esc(initCalc)}</span></div>
+              </div>
+              <div class="health">
+                <div class="hp-box ${hpCls}">
+                  <div class="lbl">Points de vie</div>
+                  <div class="big">${ed('pvCur', { fallback: '?' })} <span class="max">/ ${p.fields.pvMaxCur ? ed('pvMaxCur') : (pvMaxCur ?? '?')}</span></div>
+                  <div class="hp-bar"><i style="width:${(pct * 100).toFixed(0)}%"></i></div>
+                  <div class="row"><span>PV max de référence</span><span>${p.fields.pvMax ? ed('pvMax') : p.fields.pvMax2 ? ed('pvMax2') : esc(pvMax ?? '?')}</span></div>
+                  ${hpCls === 'crit' ? '<div class="row" style="color:var(--red)">⚠️ PV ≤ 25 %</div>' : hpCls === 'warn' ? '<div class="row" style="color:var(--hi)">PV ≤ 50 %</div>' : ''}
+                </div>
+                <div>
+                  <div class="stat" style="margin-bottom:8px"><span class="lbl">RD poison</span><span class="val sm">${p.fields.rdPoison ? ed('rdPoison') : esc(v.rdPoison || '0')}</span></div>
+                  <div class="stat" style="margin-bottom:8px"><span class="lbl">RD radiation</span><span class="val sm">${p.fields.rdRad ? ed('rdRad') : esc(v.rdRad || '—')}</span></div>
+                  <div class="stat"><span class="lbl">PA joueur</span><span class="val">${p.fields.ap ? ed('ap') : `<span class="hint">${esc(p.etat.apText || '—')}</span>`}</span></div>
+                </div>
+              </div>
+              <div class="body">
+                ${loc('head', 'Tête', '1-2')}${loc('larm', 'Bras G.', '9-11')}${loc('rarm', 'Bras D.', '12-14')}${loc('torso', 'Torse', '3-8')}${loc('lleg', 'Jambe G.', '15-17')}${loc('rleg', 'Jambe D.', '18-20')}
+              </div>
+              <div class="hint" style="margin-top:6px">RD par localisation lue depuis la fiche (tableau « Localisation | RD… » ou ligne « RD : buste … ») — lecture seule.</div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h2>État courant</h2><span class="sub">clic pour éditer</span></div>
+            <div class="panel-body etat-grid">
+              ${etatLine('Statut', 'statut')}${etatLine('Localisation', 'localisation')}${etatLine('Effets actifs', 'effets')}${etatLine('Blessures', 'blessures')}${etatLine('Fusion core', 'fusion')}${etatLine('Contrat', 'contrat')}
+              ${!p.fields.statut && !p.fields.localisation ? '<div class="k">—</div><div class="v empty">Section « État courant » non trouvée</div>' : ''}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== ARMES ===== -->
+      <div class="panel">
+        <div class="panel-head"><h2>Armes</h2><span class="sub">détectées dans l'inventaire — profils lus sur la ligne de l'objet (édition via l'inventaire)</span></div>
+        <div class="table-scroll"><table style="min-width:900px"><thead><tr><th>Nom</th><th>Compétence</th><th class="c">SR</th><th class="c">★</th><th class="c">Dégâts</th><th>Effets</th><th>Type</th><th class="c">Cad.</th><th class="c">Portée</th><th>Qualités</th><th>Munitions</th><th class="c">Poids</th></tr></thead><tbody>${wRows}</tbody></table></div>
+      </div>
+
+      <!-- ===== PAGE 2 ===== -->
+      <div class="cols2">
+        <div class="sheet" style="gap:14px">
+          <div class="panel"><div class="panel-body caps-row">
+            <div class="gear small">${GEAR}<div class="gv" style="font-size:20px">${ed('caps', { fallback: '?' })}</div></div>
+            <div><span class="ribbon" style="background:var(--hi)">Capsules</span><div class="hint" style="margin-top:4px">clic sur le nombre pour éditer</div></div>
+          </div></div>
+          <div class="panel">
+            <div class="panel-head"><h2>Munitions</h2></div>
+            <table><thead><tr><th>Calibre</th><th class="c">Quantité</th></tr></thead><tbody>${ammoRows}</tbody></table>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Matériel</h2><button class="tiny" id="btn-add-item">+ Objet</button></div>
+            <table><thead><tr><th>Objet</th><th class="c">kg</th><th></th></tr></thead><tbody>${gearRows}${addRows}</tbody></table>
+            <div class="weight-foot">
+              <div><span class="lbl">Poids porté</span><span class="val ${over ? 'over' : ''}">${p.fields.poidsCur ? ed('poidsCur') : `<span class="hint">${esc(p.etat.poidsText || '—')}</span>`} kg</span></div>
+              <div><span class="lbl">Charge max</span><span class="val">${p.fields.chargeMax ? ed('chargeMax') : p.fields.poidsMax ? ed('poidsMax') : esc(chargeMax ?? '?')} kg</span></div>
+            </div>
+            <div class="panel-body hint">Somme des poids renseignés (objets non barrés) : ${sumW.toFixed(1).replace('.', ',')} kg</div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>Aptitudes &amp; traits</h2><span class="sub">lecture seule</span></div>
+          <table><thead><tr><th>Nom</th><th class="c">Rang</th><th>Effet</th></tr></thead><tbody>${perkRows}</tbody></table>
+        </div>
+      </div>`;
+    bindEditors();
+  }
+
+  /* ============================== ÉDITION ============================== */
+  function bindEditors() {
+    $$('.ed[data-key]').forEach(el => {
+      const mode = el.dataset.mode;
+      if (mode === 'simple') el.addEventListener('click', () => startEdit(el));
+      else if (mode === 'protected') el.addEventListener('dblclick', () => startEdit(el));
+    });
+    $$('[data-tagkey]').forEach(el => el.addEventListener('dblclick', async () => {
+      const key = el.dataset.tagkey; const f = S.parsed.fields[key];
+      const now = S.edits.has(key) ? S.edits.get(key).value === 'true' : f.value;
+      const ok = await ask('Atout personnel', `<div class="confirm-line">${esc(f.label)} : <span class="old">${now ? '★ atout' : 'sans atout'}</span> → <span class="new">${now ? 'sans atout' : '★ atout'}</span></div><div class="hint">Les atouts personnels ne changent qu'à la création (ou ruling MJ).</div>`);
+      if (!ok) return;
+      const nv = String(!now);
+      if (nv === String(f.value)) S.edits.delete(key); else S.edits.set(key, { field: f, value: nv });
+      updateStatus(); render();
+    }));
+    $$('[data-strike]').forEach(b => b.addEventListener('click', () => {
+      const it = S.parsed.inv.items.find(i => i.key === b.dataset.strike);
+      const key = it.kind === 'bullet' ? it.key + '.text' : it.key + '.name';
+      let v = String(cur(key));
+      v = /^~~[\s\S]*~~\s*$/.test(v.trim()) ? v.trim().replace(/^~~/, '').replace(/~~$/, '') : '~~' + v.trim() + '~~';
+      setEdit(key, v);
+    }));
+    $$('[data-del]').forEach(b => b.addEventListener('click', async () => {
+      const it = S.parsed.inv.items.find(i => i.key === b.dataset.del);
+      const ok = await ask('Supprimer la ligne', `<div class="confirm-line">Supprimer définitivement du fichier :<br><span class="old">${esc(it.fullText)}</span></div><div class="hint">La convention du projet est plutôt de <b>barrer</b> (~~objet~~) avec la raison en aparté. Supprimer efface la ligne.</div>`, 'Supprimer');
+      if (!ok) return;
+      S.deletions.add(it.key);
+      [it.key + '.text', it.key + '.name', it.key + '.detail', it.key + '.weight'].forEach(k => S.edits.delete(k));
+      updateStatus(); render();
+    }));
+    $$('[data-unadd]').forEach(b => b.addEventListener('click', () => { S.additions.splice(+b.dataset.unadd, 1); updateStatus(); render(); }));
+    const add = $('#btn-add-item');
+    if (add) add.addEventListener('click', () => {
+      const row = add.closest('.panel').querySelector('tbody');
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td colspan="3"><input class="ed-input wide" placeholder="Nouvel objet (Markdown accepté : **gras**, *(aparté)*)…"></td>`;
+      row.appendChild(tr);
+      const inp = tr.querySelector('input'); inp.focus();
+      const done = commit => { const v = inp.value.trim(); tr.remove(); if (commit && v) { S.additions.push(v); updateStatus(); } render(); };
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') done(true); if (e.key === 'Escape') done(false); });
+      inp.addEventListener('blur', () => done(true));
+    });
+  }
+
+  function startEdit(el) {
+    if (el.querySelector('.ed-input')) return;
+    const key = el.dataset.key, f = S.parsed.fields[key], mode = el.dataset.mode;
+    const old = String(cur(key));
+    const isText = f.type === 'text';
+    const long = isText && (old.length > 40 || el.classList.contains('block'));
+    const inp = document.createElement(long ? 'textarea' : 'input');
+    inp.className = 'ed-input' + (isText ? ' wide' : '');
+    inp.value = old;
+    if (!isText) { inp.size = Math.max(3, old.length + 1); inp.inputMode = 'numeric'; }
+    el.textContent = ''; el.appendChild(inp); inp.focus(); if (!long) inp.select();
+    let finished = false;
+    const finish = async commit => {
+      if (finished) return; finished = true;
+      const nv = inp.value.trim();
+      if (!commit || nv === old) { render(); return; }
+      if (f.type === 'int' && !/^-?\d+$/.test(nv)) { toast('Valeur entière attendue'); render(); return; }
+      if (f.type === 'num' && !/^-?\d+([.,]\d+)?$/.test(nv)) { toast('Nombre attendu'); render(); return; }
+      if (isText && /\n/.test(nv) && f.type === 'text') { toast('Une seule ligne (le fichier est ligne à ligne)'); render(); return; }
+      if (mode === 'protected') {
+        $('#confirm-line').innerHTML = `${esc(f.label)} : <span class="old">${esc(old)}</span> → <span class="new">${esc(nv)}</span>`;
+        $('#confirm-extra').textContent = key.startsWith('special.') ? 'Les SR des compétences liées à cet attribut seront recalculés.' : /\.rang$/.test(key) ? 'Le SR de la compétence sera recalculé.' : '';
+        openModal('m-confirm');
+        const ok = await new Promise(res => { $('#confirm-yes').onclick = () => res(true); $('#confirm-no').onclick = () => res(false); });
+        closeModal('m-confirm');
+        if (!ok) { render(); return; }
+      }
+      setEdit(key, nv);
+    };
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !(long && e.shiftKey)) { e.preventDefault(); finish(true); } if (e.key === 'Escape') finish(false); });
+    inp.addEventListener('blur', () => finish(true));
+  }
+
+  /* ============================== CHARGEMENT ============================== */
+  async function loadFromText(text, name) {
+    try { S.parsed = P.parse(text); } catch (e) { console.error(e); $('#load-err').hidden = false; $('#load-err').textContent = 'Fichier illisible : ' + e.message; return false; }
+    S.text = text; S.fileName = name; S.edits.clear(); S.additions = []; S.deletions.clear();
+    if (!S.parsed.special.FOR) toast('⚠️ S.P.E.C.I.A.L. non reconnu — fiche partiellement interprétée', 4000);
+    updateStatus(); render(); closeModal('m-load');
+    document.title = `${S.parsed.meta.nom || name} — Fiche PJ Fallout`;
+    return true;
+  }
+  async function loadHandle(fh) {
+    const file = await fh.getFile();
+    const text = await file.text();
+    S.fileHandle = fh; S.lastModified = file.lastModified; S.repo = null; updateSync();
+    if (await loadFromText(text, file.name)) { await idb.set('lastFile', fh); await idb.set('lastFileName', file.name); }
+  }
+
+  async function verifyPerm(handle, mode = 'read') {
+    if (!handle) return false;
+    const o = { mode };
+    if ((await handle.queryPermission(o)) === 'granted') return true;
+    return (await handle.requestPermission(o)) === 'granted';
+  }
+
+  async function listDir() {
+    const list = $('#file-list'); list.innerHTML = '';
+    $('#dir-path').textContent = S.dirPath.join(' › ') || 'Aucun dossier mémorisé';
+    $('#dir-hint').textContent = S.dirHandle ? 'Dossier mémorisé dans ce navigateur (le chemin complet n\'est pas exposé par le navigateur).' : 'Repli : choisissez le dossier où se trouve cette application (ou la racine du projet Fallout_JDR).';
+    if (!S.dirHandle) { list.innerHTML = '<div class="none">— aucun dossier —</div>'; return; }
+    const entries = [];
+    try {
+      for await (const [name, h] of S.dirHandle.entries()) if (h.kind === 'file' && /\.md$/i.test(name)) entries.push(h);
+    } catch (e) { list.innerHTML = `<div class="none">Accès refusé : ${esc(e.message)}</div>`; $('#btn-dir-auth').hidden = false; return; }
+    $('#btn-dir-auth').hidden = true;
+    entries.sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+    if (!entries.length) { list.innerHTML = '<div class="none">Aucun fichier .md dans ce dossier</div>'; return; }
+    const last = await idb.get('lastFileName');
+    for (const h of entries) {
+      const div = document.createElement('div');
+      div.innerHTML = `<span>${esc(h.name)}</span><small>…</small>`;
+      if (h.name === last) div.classList.add('sel');
+      div.addEventListener('click', () => loadHandle(h).catch(e => { $('#load-err').hidden = false; $('#load-err').textContent = e.message; }));
+      list.appendChild(div);
+      h.getFile().then(f => f.slice(0, 600).text()).then(head => {
+        const nm = /^nom:\s*(.+)$/m.exec(head), jr = /^joueur:\s*(.+)$/m.exec(head), nv = /^niveau_pj:\s*(\d+)/m.exec(head);
+        div.querySelector('small').textContent = nm ? `${nm[1].trim()}${jr ? ' · ' + jr[1].trim() : ''}${nv ? ' · niv. ' + nv[1] : ''}` : (/^type:\s*pj/m.test(head) ? 'PJ' : '');
+      }).catch(() => { });
+    }
+  }
+
+  async function pickDir() {
+    $('#load-err').hidden = true;
+    let h;
+    try { h = await window.showDirectoryPicker({ id: 'fiches-pj', mode: 'readwrite', startIn: S.dirHandle || 'documents' }); } catch (e) { if (e.name !== 'AbortError') { $('#load-err').hidden = false; $('#load-err').textContent = e.message; } return; }
+    let path = [h.name];
+    // descente automatique vers Personnages/pj si on a désigné la racine du projet (ou Personnages/)
+    try {
+      const pers = await h.getDirectoryHandle('Personnages').catch(() => null);
+      if (pers) { h = pers; path.push('Personnages'); }
+      const pj = await h.getDirectoryHandle('pj').catch(() => null);
+      if (pj) { h = pj; path.push('pj'); }
+    } catch (e) { /* ignore */ }
+    S.dirHandle = h; S.dirPath = path;
+    await idb.set('dir', h); await idb.set('dirPath', path);
+    await listDir();
+  }
+
+  async function openLoadModal() {
+    $('#load-err').hidden = true;
+    listRepo();
+    if (!hasFS) { $('#load-fs').hidden = true; $('#load-fallback').hidden = false; openModal('m-load'); return; }
+    openModal('m-load');
+    if (!S.dirHandle) {
+      const h = await idb.get('dir');
+      if (h) { S.dirHandle = h; S.dirPath = (await idb.get('dirPath')) || [h.name]; }
+    }
+    if (S.dirHandle) {
+      const perm = await S.dirHandle.queryPermission({ mode: 'readwrite' });
+      if (perm !== 'granted') {
+        $('#dir-path').textContent = S.dirPath.join(' › ');
+        $('#file-list').innerHTML = '<div class="none">Accès au dossier à ré-autoriser pour cette session.</div>';
+        $('#btn-dir-auth').hidden = false;
+        return;
+      }
+    }
+    await listDir();
+  }
+  $('#btn-dir-auth').addEventListener('click', async () => { if (await verifyPerm(S.dirHandle, 'readwrite')) await listDir(); });
+  $('#btn-dir').addEventListener('click', pickDir);
+  $('#btn-file-any').addEventListener('click', async () => {
+    try { const [fh] = await window.showOpenFilePicker({ id: 'fiche-any', types: [{ description: 'Fiche Markdown', accept: { 'text/markdown': ['.md'] } }] }); await loadHandle(fh); }
+    catch (e) { if (e.name !== 'AbortError') { $('#load-err').hidden = false; $('#load-err').textContent = e.message; } }
+  });
+  $('#file-input').addEventListener('change', async e => {
+    const f = e.target.files[0]; if (!f) return;
+    S.legacyFile = f; S.fileHandle = null; S.dirPath = []; S.repo = null; updateSync();
+    await loadFromText(await f.text(), f.name);
+  });
+  const guardedOpen = async () => { if (isDirty() && !(await ask('Modifications non sauvegardées', 'Charger une autre fiche abandonnera les modifications en cours. Continuer ?', 'Abandonner'))) return; openLoadModal(); };
+  $('#btn-load').addEventListener('click', guardedOpen);
+  $('#btn-load-2').addEventListener('click', guardedOpen);
+  $('#btn-reload').addEventListener('click', async () => {
+    if (isDirty() && !(await ask('Recharger', 'Relire le fichier depuis le disque abandonnera les modifications en cours. Continuer ?', 'Recharger'))) return;
+    if (S.repo) { clearDraft(S.repo.id); await loadFromRepo(S.repo.id, { ignoreDraft: true }); syncMsg('Fiche rechargée depuis le repo.', true); return; }
+    if (S.fileHandle) { if (await verifyPerm(S.fileHandle, 'read')) await loadHandle(S.fileHandle); }
+    else if (S.legacyFile) await loadFromText(await S.legacyFile.text(), S.legacyFile.name);
+    toast('Fiche rechargée');
+  });
+
+  /* ============================== SAUVEGARDE ============================== */
+  function buildEdits(ctx = { parsed: S.parsed, edits: S.edits, deletions: S.deletions, additions: S.additions }) {
+    const edits = [];
+    const changes = [];
+    for (const [key, e] of ctx.edits) {
+      const f = e.field;
+      let text = e.value;
+      if (f.type === 'tag') text = e.value === 'true' ? ' ★ ' : '  ';
+      edits.push({ start: f.start, end: f.end, text });
+      changes.push({ label: f.label + (key.startsWith('inv.') ? '' : ''), old: f.type === 'tag' ? (f.value ? '★' : '—') : String(f.value), nw: f.type === 'tag' ? (e.value === 'true' ? '★' : '—') : e.value, auto: f.mode === 'auto' });
+    }
+    // suppressions de lignes (ligne + retour à la ligne)
+    for (const key of ctx.deletions) {
+      const it = ctx.parsed.inv.items.find(i => i.key === key);
+      const L = ctx.parsed.lines[it.line], prev = ctx.parsed.lines[it.line - 1];
+      // on retire « \n<ligne> » (saut de ligne précédent inclus) : compatible avec une insertion en fin de cette même ligne
+      edits.push({ start: prev ? prev.end : L.start, end: L.end, text: '' });
+      changes.push({ label: 'Objet supprimé', old: it.fullText, nw: '' });
+    }
+    // ajouts
+    if (ctx.additions.length) {
+      const at = ctx.parsed.inv.insertAt;
+      if (!at) throw new Error('Section Inventaire introuvable : impossible d\'ajouter un objet.');
+      const pad = ' '.repeat(at.indent || 0);
+      const txt = ctx.additions.map(t => at.kind === 'row' ? `\n| ${t} |${' |'.repeat(Math.max(1, at.cols - 1))}` : `\n${pad}- ${t}`).join('');
+      edits.push({ start: at.pos, end: at.pos, text: txt });
+      ctx.additions.forEach(t => changes.push({ label: 'Objet ajouté', old: '', nw: t }));
+    }
+    // date de mise à jour
+    const mu = ctx.parsed.fields.mise_a_jour;
+    if (mu && mu.value !== today() && changes.length) { edits.push({ start: mu.start, end: mu.end, text: today() }); changes.push({ label: 'mise_a_jour (front-matter)', old: mu.value, nw: today(), auto: true }); }
+    return { edits, changes };
+  }
+
+  async function openSaveModal() {
+    if (!S.parsed || !isDirty()) return;
+    if (S.repo) return openPublishModal();
+    $('#save-conflicts').hidden = true; $('#save-cred').hidden = true; $('#save-yes').textContent = 'Écrire le fichier'; $('#save-title').textContent = 'Sauvegarder dans le fichier .md';
+    $('#save-err').hidden = true; $('#save-warn').hidden = true;
+    let built;
+    try { built = buildEdits(); } catch (e) { $('#save-err').hidden = false; $('#save-err').textContent = e.message; openModal('m-save'); return; }
+    $('#save-file').textContent = (S.dirPath.length ? S.dirPath.join(' › ') + ' › ' : '') + S.fileName;
+    $('#save-changes').innerHTML = built.changes.map(c => `<div><span class="lbl">${esc(c.label)}${c.auto ? ' <span class="kind">auto</span>' : ''}</span><span><span class="old">${esc(c.old)}</span> ${c.old && c.nw ? '→' : ''} <span class="new">${esc(c.nw)}</span></span></div>`).join('');
+    if (S.fileHandle) {
+      try { const f = await S.fileHandle.getFile(); if (f.lastModified !== S.lastModified) { $('#save-warn').hidden = false; $('#save-warn').textContent = '⚠️ Le fichier a été modifié sur le disque depuis son chargement (par Obsidian, l\'agent…). Sauvegarder écraserait ces changements : rechargez d\'abord la fiche.'; } } catch (e) { }
+    } else if (!S.legacyFile) { $('#save-warn').hidden = false; $('#save-warn').textContent = 'Aucun accès direct au fichier : le résultat sera téléchargé.'; }
+    openModal('m-save');
+  }
+  $('#btn-save').addEventListener('click', openSaveModal);
+  $('#save-yes').addEventListener('click', async () => {
+    if (S.repo) return publish();
+    try {
+      const { edits } = buildEdits();
+      const out = P.applyEdits(S.text, edits);
+      // contrôle : le résultat doit rester parsable et conserver le nom
+      const check = P.parse(out);
+      if (!check.meta.nom || (S.parsed.meta.nom && check.meta.nom !== S.parsed.meta.nom)) throw new Error('Contrôle de cohérence échoué (front-matter altéré) — écriture annulée.');
+      if (S.fileHandle) {
+        if (!$('#save-warn').hidden && /modifié sur le disque/.test($('#save-warn').textContent)) {
+          if (!(await ask('Écraser ?', 'Le fichier a changé sur le disque. Écraser quand même ?', 'Écraser'))) return;
+        }
+        if (!(await verifyPerm(S.fileHandle, 'readwrite'))) throw new Error('Permission d\'écriture refusée.');
+        const w = await S.fileHandle.createWritable();
+        await w.write(out); await w.close();
+        closeModal('m-save');
+        await loadHandle(S.fileHandle);
+        toast('✓ Fiche sauvegardée — ' + S.fileName);
+      } else {
+        const blob = new Blob([out], { type: 'text/markdown;charset=utf-8' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = S.fileName || 'fiche.md'; a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+        closeModal('m-save');
+        await loadFromText(out, S.fileName);
+        toast('Fichier téléchargé — remplacez l\'original');
+      }
+    } catch (e) { console.error(e); $('#save-err').hidden = false; $('#save-err').textContent = e.message; }
+  });
+
+  /* ============================== REPO ============================== */
+  // Modèle : S.text = dernière version connue du repo (base, sha = S.repo.sha) ;
+  // S.edits / S.additions / S.deletions = modifications en attente, persistées automatiquement (localStorage).
+  // Publier = rebaser ces modifications sur la version courante du repo, récapituler, committer.
+  const shortSha = sha => (sha || '').slice(0, 7);
+
+  async function repoFetch(path, init = {}) {
+    const r = await fetch(REPO_WORKER + path, { ...init, headers: { 'Content-Type': 'application/json', ...(init.headers || {}) } });
+    if (r.status === 304) return { notModified: true };
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      const e = new Error(data.error || ('Erreur ' + r.status)); e.status = r.status;
+      const ra = Number(r.headers.get('Retry-After') || data.retryAfter || 0);
+      if (r.status === 429 && ra) e.retryAfter = ra;
+      throw e;
+    }
+    data.etag = r.headers.get('ETag') || null;
+    return data;
+  }
+
+  /* ---- persistance locale ---- */
+  const readCache = id => { try { const d = localStorage.getItem(CACHE_KEY(id)); return d ? JSON.parse(d) : null; } catch (e) { return null; } };
+  const writeCache = (id, r) => { try { localStorage.setItem(CACHE_KEY(id), JSON.stringify({ content: r.content, sha: r.sha, etag: r.etag || null, at: Date.now() })); } catch (e) { } };
+  const readDraft = id => { try { const d = localStorage.getItem(DRAFT_KEY(id)); return d ? JSON.parse(d) : null; } catch (e) { return null; } };
+  const clearDraft = id => { try { localStorage.removeItem(DRAFT_KEY(id)); } catch (e) { } };
+  function saveDraft() {
+    if (!S.repo) return;
+    if (!isDirty()) { clearDraft(S.repo.id); return; }
+    try {
+      localStorage.setItem(DRAFT_KEY(S.repo.id), JSON.stringify({
+        sha: S.repo.sha, baseText: S.text, at: Date.now(),
+        edits: [...S.edits].map(([k, e]) => [k, e.value]), additions: S.additions, deletions: [...S.deletions],
+      }));
+    } catch (e) { /* ignore */ }
+  }
+  function restoreDraft(d) {
+    let restored = 0;
+    for (const [k, v] of d.edits || []) { const f = S.parsed.fields[k]; if (f && String(v) !== String(f.value)) { S.edits.set(k, { field: f, value: v }); restored++; } }
+    S.additions = (d.additions || []).slice(); restored += S.additions.length;
+    for (const k of d.deletions || []) if (S.parsed.inv.items.some(i => i.key === k)) { S.deletions.add(k); restored++; }
+    updateStatus(); render();
+    return restored;
+  }
+
+  /* ---- rebasage des modifications sur une autre version du texte ---- */
+  // Renvoie un plan { text, sha, etag, parsed, edits, deletions, additions, conflicts, lost, dropped }.
+  // Les conflits ne sont pas tranchés ici : ils sont listés pour la fenêtre de publication.
+  function rebasePlan(remoteText, remoteSha, remoteEtag) {
+    const parsedR = P.parse(remoteText);
+    const usedR = new Set();
+    const itemInRemote = it => { // même objet d'inventaire dans la version distante (par contenu)
+      const m = parsedR.inv.items.find(r => !usedR.has(r.key) && r.fullText === it.fullText); if (m) usedR.add(m.key); return m;
+    };
+    const mapKey = key => {
+      const m = /^(inv\.\d+)(\..+)$/.exec(key);
+      if (!m) return key;
+      const it = S.parsed.inv.items.find(i => i.key === m[1]); if (!it) return null;
+      const r = itemInRemote(it); return r ? r.key + m[2] : null;
+    };
+    const plan = { text: remoteText, sha: remoteSha, etag: remoteEtag, parsed: parsedR, edits: new Map(), deletions: new Set(), additions: S.additions.slice(), conflicts: [], lost: [], dropped: [] };
+    for (const [key, e] of S.edits) {
+      const keyR = mapKey(key), fR = keyR && parsedR.fields[keyR];
+      if (!fR) { plan.lost.push({ label: e.field.label, value: e.value }); continue; }
+      const baseV = String(e.field.value), remoteV = String(fR.value), mineV = String(e.value);
+      if (remoteV === mineV) plan.dropped.push({ label: fR.label, value: mineV });          // le repo a déjà cette valeur
+      else if (remoteV === baseV) plan.edits.set(keyR, { field: fR, value: e.value });     // champ intact côté repo
+      else plan.conflicts.push({ key: keyR, field: fR, label: fR.label, base: baseV, mine: e.value, remote: fR.value, type: fR.type });
+    }
+    for (const key of S.deletions) {
+      const it = S.parsed.inv.items.find(i => i.key === key);
+      const r = it && itemInRemote(it);
+      if (r) plan.deletions.add(r.key); else if (it) plan.lost.push({ label: 'Objet supprimé', value: it.fullText });
+    }
+    return plan;
+  }
+  function currentPlan() { // pas de changement distant : le plan est la base courante
+    return { text: S.text, sha: S.repo.sha, etag: S.repo.etag, parsed: S.parsed, edits: new Map(S.edits), deletions: new Set(S.deletions), additions: S.additions.slice(), conflicts: [], lost: [], dropped: [] };
+  }
+  async function applyPlanAsBase(plan) { // la version distante devient la base, modifications remappées
+    const keep = { edits: plan.edits, deletions: plan.deletions, additions: plan.additions };
+    S.repo.sha = plan.sha; S.repo.etag = plan.etag; S.repo.loadedAt = Date.now();
+    await loadFromText(plan.text, S.repo.id + '.md');
+    S.edits = new Map(keep.edits); S.deletions = new Set(keep.deletions); S.additions = keep.additions.slice();
+    updateStatus(); render();
+  }
+
+  /* ---- chargement ---- */
+  async function listRepo() {
+    const sel = $('#repo-select'), btn = $('#btn-repo-load');
+    sel.innerHTML = '<option value="">— chargement —</option>'; btn.disabled = true;
+    try {
+      const idx = await fetch(REPO_API + '/index.json', { cache: 'no-cache' }).then(r => r.json()); // servi par GitHub Pages : hors quota
+      const chars = (idx.characters || []).slice().sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+      if (!chars.length) { sel.innerHTML = '<option value="">Aucune fiche publiée</option>'; return; }
+      sel.innerHTML = '<option value="">— choisir un personnage —</option>';
+      for (const c of chars) {
+        const o = document.createElement('option');
+        o.value = c.id;
+        o.textContent = `${c.name} (${c.id}.md)${readDraft(c.id) ? ' — modifications non publiées' : ''}`;
+        if (S.repo && S.repo.id === c.id) o.selected = true;
+        sel.appendChild(o);
+      }
+      btn.disabled = !sel.value;
+    } catch (e) { sel.innerHTML = `<option value="">Repo inaccessible : ${esc(e.message)}</option>`; }
+  }
+  $('#repo-select').addEventListener('change', () => { $('#btn-repo-load').disabled = !$('#repo-select').value; });
+  $('#btn-repo-load').addEventListener('click', () => {
+    const id = $('#repo-select').value; if (!id) return;
+    loadFromRepo(id).catch(e => { $('#load-err').hidden = false; $('#load-err').textContent = e.message; });
+  });
+  $('#btn-repo-refresh').addEventListener('click', listRepo);
+
+  async function loadFromRepo(id, { ignoreDraft = false, preferCache = false } = {}) {
+    $('#load-err').hidden = true;
+    const cache = readCache(id);
+    let remote = null, fromCache = false;
+    if (preferCache && cache) { remote = cache; fromCache = true; }
+    else {
+      try { remote = await repoFetch('/sheet/' + encodeURIComponent(id)); writeCache(id, remote); }
+      catch (e) { if (!cache) throw e; remote = cache; fromCache = true; syncMsg('Repo inaccessible (' + e.message + ') — version en cache affichée.'); }
+    }
+    const draft = ignoreDraft ? null : readDraft(id);
+    if (!draft) clearDraft(id);
+    S.fileHandle = null; S.legacyFile = null; S.dirPath = [];
+    // base : celle des modifications en attente si elles existent, sinon la version distante
+    const base = draft ? { content: draft.baseText, sha: draft.sha, etag: null } : remote;
+    S.repo = { id, sha: base.sha, etag: base.etag, remoteSha: remote.sha, remoteText: remote.content, remoteEtag: remote.etag, checkedAt: fromCache ? 0 : Date.now(), loadedAt: fromCache ? (remote.at || Date.now()) : Date.now(), publishedAt: 0, pausedUntil: 0, conflicts: [] };
+    if (!(await loadFromText(base.content, id + '.md'))) return;
+    try { localStorage.setItem('fiche-pj:lastRepo', id); } catch (e) { }
+    if (draft) { const n = restoreDraft(draft); if (n) syncMsg(n + ' modification' + (n > 1 ? 's' : '') + ' non publiée' + (n > 1 ? 's' : '') + ' restaurée' + (n > 1 ? 's' : '') + '.', true); }
+    if (remote.sha !== S.repo.sha) await integrateRemote(remote); // le repo a bougé pendant l'absence
+    updateSync();
+    if (fromCache) checkRemote({ force: true });
+  }
+
+  // Une nouvelle version distante est connue : on l'adopte comme base si c'est possible sans trancher de conflit.
+  async function integrateRemote(remote) {
+    S.repo.remoteSha = remote.sha; S.repo.remoteText = remote.content; S.repo.remoteEtag = remote.etag;
+    writeCache(S.repo.id, remote);
+    if (!isDirty()) {
+      S.repo.sha = remote.sha; S.repo.etag = remote.etag; S.repo.loadedAt = Date.now();
+      await loadFromText(remote.content, S.repo.id + '.md'); updateStatus();
+      S.repo.conflicts = []; syncMsg('Fiche mise à jour depuis le repo (' + shortSha(remote.sha) + ').', true);
+      return;
+    }
+    const plan = rebasePlan(remote.content, remote.sha, remote.etag);
+    if (!plan.conflicts.length) {
+      await applyPlanAsBase(plan);
+      S.repo.conflicts = [];
+      const kept = plan.edits.size + plan.deletions.size + plan.additions.length;
+      syncMsg('Repo mis à jour (' + shortSha(remote.sha) + ') — vos ' + kept + ' modification' + (kept > 1 ? 's' : '') + ' ont été reportées.' + (plan.lost.length ? ' ' + plan.lost.length + ' non reportable(s).' : ''), true);
+    } else {
+      S.repo.conflicts = plan.conflicts; // tranchés à la publication
+    }
+  }
+
+  let checking = null;
+  async function checkRemote({ silent = true, force = false } = {}) {
+    if (!S.repo) return;
+    if (checking) return checking;
+    const now = Date.now();
+    if (now < S.repo.pausedUntil) { if (!silent) syncMsg('Quota GitHub épuisé — nouvelle tentative possible à ' + new Date(S.repo.pausedUntil).toLocaleTimeString('fr-FR')); return; }
+    if (!force && now - S.repo.checkedAt < CHECK_MIN_INTERVAL) return;
+    checking = (async () => {
+      try {
+        const etag = S.repo.remoteEtag || S.repo.etag;
+        const remote = await repoFetch('/sheet/' + encodeURIComponent(S.repo.id), { headers: etag ? { 'If-None-Match': etag } : {} });
+        S.repo.checkedAt = Date.now();
+        let integrated = false;
+        if (!remote.notModified && remote.sha !== S.repo.remoteSha) { await integrateRemote(remote); integrated = true; }
+        else if (!remote.notModified) { S.repo.remoteEtag = remote.etag; }
+        updateSync();
+        if (!silent && !integrated) syncMsg(S.repo.remoteSha === S.repo.sha ? 'Le repo n\'a pas changé.' : 'Nouvelle version sur le repo — conflits à régler à la publication.', true);
+      } catch (e) {
+        if (e.retryAfter) { S.repo.pausedUntil = Date.now() + e.retryAfter * 1000; syncMsg(e.message + ' (vérifications automatiques suspendues)'); }
+        else syncMsg('Vérification impossible : ' + e.message);
+      } finally { checking = null; }
+    })();
+    return checking;
+  }
+
+  /* ---- pastille / panneau ---- */
+  function syncMsg(m, autoClear = false) {
+    const el = $('#sync-msg'); el.hidden = !m; el.textContent = m || '';
+    clearTimeout(el._h); if (m && autoClear) el._h = setTimeout(() => { el.hidden = true; el.textContent = ''; }, 6000);
+  }
+  const ago = t => {
+    if (!t) return null;
+    const s = Math.max(0, Math.round((Date.now() - t) / 1000));
+    if (s < 10) return 'à l\'instant'; if (s < 60) return 'il y a ' + s + ' s';
+    const m = Math.round(s / 60); if (m < 60) return 'il y a ' + m + ' min';
+    const h = Math.floor(m / 60); return 'il y a ' + h + ' h' + (m % 60 ? ' ' + (m % 60) : '');
+  };
+  function updateSyncWhen() {
+    if (!S.repo) return;
+    const t = Math.max(S.repo.loadedAt || 0, S.repo.publishedAt || 0);
+    $('#sync-when').textContent = '· ' + ago(t);
+    $('#sync-pill').title = 'Fiche ' + (S.repo.publishedAt >= S.repo.loadedAt ? 'publiée ' : 'chargée ') + ago(t);
+  }
+  setInterval(updateSyncWhen, 1000);
+
+  function updateSync() {
+    const bar = $('#sync-bar');
+    if (!S.repo) { bar.hidden = true; return; }
+    bar.hidden = false;
+    const n = S.edits.size + S.additions.length + S.deletions.size;
+    const behind = S.repo.remoteSha !== S.repo.sha;
+    const state = n && behind ? 'conflict' : n ? 'edits' : behind ? 'behind' : 'synced';
+    bar.dataset.state = state; updateSyncWhen();
+    const nc = S.repo.conflicts.length;
+    $('#sync-status').innerHTML = {
+      synced: `<b>${esc(S.repo.id)}.md</b>`,
+      edits: `<b>${esc(S.repo.id)}.md</b>`,
+      behind: `<b>${esc(S.repo.id)}.md</b> · nouvelle version sur le repo`,
+      conflict: `<b>${esc(S.repo.id)}.md</b> · le repo a changé — ${nc} conflit${nc > 1 ? 's' : ''} à régler à la publication`,
+    }[state];
+    $('#sync-pill-text').textContent = { edits: 'repo · ' + n + ' modif.', synced: 'repo · synchronisé', behind: 'repo · nouvelle version', conflict: 'repo · conflit' }[state];
+    if (state !== S.repo.lastState && state === 'conflict') setSyncOpen(true);
+    S.repo.lastState = state;
+    $('#btn-sync-push').hidden = !n;
+    $('#btn-sync-discard').hidden = !n;
+  }
+  function setSyncOpen(open) { const el = $('#sync-bar'); el.classList.toggle('open', open); $('#sync-pill').setAttribute('aria-expanded', String(open)); }
+  $('#sync-pill').addEventListener('click', () => setSyncOpen(!$('#sync-bar').classList.contains('open')));
+  $('#sync-pill').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#sync-pill').click(); } });
+  $('#btn-sync-check').addEventListener('click', () => checkRemote({ silent: false, force: true }));
+  $('#btn-sync-push').addEventListener('click', () => { setSyncOpen(false); openPublishModal(); });
+  $('#btn-sync-discard').addEventListener('click', async () => {
+    if (!(await ask('Abandonner mes modifications', 'Les modifications non publiées seront perdues et la fiche reviendra à la version du repo. Continuer ?', 'Abandonner'))) return;
+    S.edits.clear(); S.additions = []; S.deletions.clear(); clearDraft(S.repo.id);
+    if (S.repo.remoteSha !== S.repo.sha) await integrateRemote({ content: S.repo.remoteText, sha: S.repo.remoteSha, etag: S.repo.remoteEtag });
+    updateStatus(); render(); syncMsg('Modifications abandonnées.', true);
+  });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && S.repo) checkRemote(); });
+  window.addEventListener('online', () => { if (S.repo) checkRemote(); });
+  setInterval(() => { if (S.repo && document.visibilityState === 'visible') checkRemote(); }, CHECK_PERIOD);
+
+  /* ---- publication (récapitulatif + conflits + commit) ---- */
+  let publishPlan = null;
+  async function openPublishModal() {
+    if (!S.repo || !isDirty()) return;
+    $('#save-err').hidden = true; $('#save-warn').hidden = true; $('#save-conflicts').hidden = true;
+    $('#save-cred').hidden = false; $('#save-yes').textContent = 'Publier'; $('#save-yes').disabled = false; $('#save-title').textContent = 'Publier sur le repo';
+    try {
+      $('#save-name').value = $('#save-name').value || localStorage.getItem(NAME_KEY) || '';
+      $('#save-pwd').value = $('#save-pwd').value || localStorage.getItem(PWD_KEY) || '';
+    } catch (e) { }
+    $('#save-file').textContent = S.repo.id + '.md · repo GitHub · base ' + shortSha(S.repo.sha);
+    openModal('m-save');
+    $('#save-changes').innerHTML = '<div class="hint">Vérification du repo…</div>';
+    await checkRemote({ force: true });
+    const behind = S.repo.remoteSha !== S.repo.sha;
+    publishPlan = behind ? rebasePlan(S.repo.remoteText, S.repo.remoteSha, S.repo.remoteEtag) : currentPlan();
+    let built;
+    try { built = buildEdits(publishPlan); } catch (e) { $('#save-changes').innerHTML = ''; $('#save-err').hidden = false; $('#save-err').textContent = e.message; $('#save-yes').disabled = true; return; }
+    const rows = built.changes.map(c => `<div><span class="lbl">${esc(c.label)}${c.auto ? ' <span class="kind">auto</span>' : ''}</span><span><span class="old">${esc(c.old)}</span> ${c.old && c.nw ? '→' : ''} <span class="new">${esc(c.nw)}</span></span></div>`);
+    publishPlan.dropped.forEach(d => rows.push(`<div><span class="lbl">${esc(d.label)} <span class="kind">déjà sur le repo</span></span><span><span class="new">${esc(d.value)}</span></span></div>`));
+    publishPlan.lost.forEach(d => rows.push(`<div><span class="lbl" style="color:var(--red)">${esc(d.label)} <span class="kind">non reportable</span></span><span><span class="old">${esc(d.value)}</span></span></div>`));
+    $('#save-changes').innerHTML = rows.join('') || '<div class="hint">Aucun changement à publier.</div>';
+    if (publishPlan.conflicts.length) {
+      $('#save-conflicts').hidden = false;
+      const fmt = (c, v) => c.type === 'tag' ? (String(v) === 'true' || v === true ? '★' : '—') : String(v);
+      $('#save-conflict-list').innerHTML = publishPlan.conflicts.map((c, i) => `
+        <div class="m-save-conflict">
+          <span class="lbl">${esc(c.label)} <span class="kind">base : ${esc(fmt(c, c.base))}</span></span>
+          <label><input type="radio" name="cf${i}" value="mine" checked> ma valeur <span class="new">${esc(fmt(c, c.mine))}</span></label>
+          <label><input type="radio" name="cf${i}" value="repo"> repo <span class="old">${esc(fmt(c, c.remote))}</span></label>
+        </div>`).join('');
+    }
+    if (behind) { $('#save-file').textContent += ' → repo ' + shortSha(S.repo.remoteSha); $('#save-warn').hidden = false; $('#save-warn').textContent = 'Le repo a changé depuis votre chargement : vos modifications seront appliquées sur sa version actuelle.'; }
+  }
+
+  async function publish() {
+    const plan = publishPlan; if (!plan) return;
+    const name = $('#save-name').value.trim(), pwd = $('#save-pwd').value;
+    if (!name || !pwd) { $('#save-err').hidden = false; $('#save-err').textContent = 'Indiquez votre nom de joueur et votre mot de passe.'; return; }
+    $('#save-yes').disabled = true; $('#save-err').hidden = true;
+    try {
+      // conflits tranchés dans la fenêtre
+      plan.conflicts.forEach((c, i) => {
+        const choice = (document.querySelector(`input[name="cf${i}"]:checked`) || {}).value;
+        if (choice === 'mine') plan.edits.set(c.key, { field: c.field, value: c.mine });
+      });
+      const { edits, changes } = buildEdits(plan);
+      const out = P.applyEdits(plan.text, edits);
+      const check = P.parse(out);
+      if (!check.meta.nom || (plan.parsed.meta.nom && check.meta.nom !== plan.parsed.meta.nom)) throw new Error('Contrôle de cohérence échoué (front-matter altéré) — publication annulée.');
+      const summary = changes.filter(c => !c.auto).map(c => c.old && c.nw ? `${c.label} ${c.old} → ${c.nw}` : `${c.label} ${c.nw || c.old}`).join(', ');
+      const message = ($('#save-msg').value.trim() || ('Mise à jour de ' + S.repo.id + (summary ? ' : ' + summary : ''))).slice(0, 200);
+      const res = await repoFetch('/sheet/' + encodeURIComponent(S.repo.id), {
+        method: 'PUT', headers: { 'X-Player-Name': encodeURIComponent(name), 'X-Player-Key': pwd },
+        body: JSON.stringify({ content: out, sha: plan.sha, message }),
+      });
+      try { localStorage.setItem(NAME_KEY, name); localStorage.setItem(PWD_KEY, pwd); } catch (e) { }
+      S.edits.clear(); S.additions = []; S.deletions.clear(); clearDraft(S.repo.id);
+      S.repo.sha = S.repo.remoteSha = res.sha; S.repo.etag = S.repo.remoteEtag = null; S.repo.remoteText = out;
+      S.repo.checkedAt = S.repo.publishedAt = S.repo.loadedAt = Date.now(); S.repo.conflicts = [];
+      writeCache(S.repo.id, { content: out, sha: res.sha, etag: null });
+      await loadFromText(out, S.repo.id + '.md');
+      closeModal('m-save'); $('#save-msg').value = '';
+      updateSync(); syncMsg('✓ Publié par ' + res.player + ' — commit ' + shortSha(res.commit), true); toast('✓ Fiche publiée');
+    } catch (e) {
+      $('#save-err').hidden = false;
+      if (e.status === 409) { $('#save-err').textContent = 'Le repo a encore changé pendant la publication. Récapitulatif rechargé.'; await openPublishModal(); return; }
+      if (e.status === 401) { try { localStorage.removeItem(PWD_KEY); } catch (err) { } }
+      $('#save-err').textContent = e.message;
+    } finally { $('#save-yes').disabled = false; }
+  }
+
+  window.ficheApp = { loadFromText, loadFromRepo, openPublishModal, publish, checkRemote, state: S }; // hook de test / débogage
+
+  /* ============================== DÉMARRAGE ============================== */
+  (async function init() {
+    updateStatus();
+    let lastRepo = null; try { lastRepo = localStorage.getItem('fiche-pj:lastRepo'); } catch (e) { }
+    if (lastRepo) {
+      // restauration automatique de la dernière fiche repo (cache local d'abord, puis vérification)
+      loadFromRepo(lastRepo, { preferCache: true }).catch(e => {
+        toast('Repo : ' + e.message, 4000);
+        const b = document.createElement('button'); b.className = 'primary'; b.style.marginRight = '8px';
+        b.textContent = 'Réessayer ' + lastRepo;
+        b.addEventListener('click', () => loadFromRepo(lastRepo).catch(err => { toast('Repo : ' + err.message, 4000); openLoadModal(); }));
+        $('#btn-load-2').before(b);
+      });
+      return;
+    }
+    if (!hasFS) return;
+    const fh = await idb.get('lastFile');
+    const dir = await idb.get('dir');
+    if (dir) { S.dirHandle = dir; S.dirPath = (await idb.get('dirPath')) || [dir.name]; }
+    if (fh) {
+      const name = (await idb.get('lastFileName')) || fh.name;
+      $('#welcome p').innerHTML = `Dernière fiche ouverte : <b style="color:var(--accent)">${esc(name)}</b>${S.dirPath.length ? ' <span class="hint">(' + esc(S.dirPath.join(' › ')) + ')</span>' : ''}`;
+      const b = document.createElement('button'); b.className = 'primary'; b.textContent = 'Rouvrir ' + name; b.style.marginRight = '8px';
+      b.addEventListener('click', async () => { try { if (await verifyPerm(fh, 'readwrite')) await loadHandle(fh); } catch (e) { toast('Impossible de rouvrir : ' + e.message, 4000); openLoadModal(); } });
+      $('#btn-load-2').before(b);
+      $('#btn-load-2').textContent = 'Charger une autre fiche…'; $('#btn-load-2').classList.remove('primary');
+    }
+  })();
+})();
+</script>
+</body>
+</html>
